@@ -4,9 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, UserPlus } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -17,6 +20,11 @@ export default function Users() {
   const qc = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<AppRole>("events_user");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState<AppRole>("events_user");
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles"],
@@ -36,6 +44,28 @@ export default function Users() {
       return data;
     },
     enabled: isSuperAdmin,
+  });
+
+  const createUser = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: { email: newEmail, password: newPassword, full_name: newName, role: newRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profiles"] });
+      qc.invalidateQueries({ queryKey: ["all-user-roles"] });
+      toast.success("User created successfully");
+      setCreateOpen(false);
+      setNewEmail("");
+      setNewPassword("");
+      setNewName("");
+      setNewRole("events_user");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const addRole = useMutation({
@@ -61,9 +91,52 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-        <p className="text-sm text-muted-foreground">Manage user roles and permissions</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
+          <p className="text-sm text-muted-foreground">Manage user roles and permissions</p>
+        </div>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button><UserPlus className="mr-2 h-4 w-4" />Create User</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New User</DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => { e.preventDefault(); createUser.mutate(); }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="new-name">Full Name</Label>
+                <Input id="new-name" value={newName} onChange={(e) => setNewName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-email">Email</Label>
+                <Input id="new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Password</Label>
+                <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="events_user">Events User</SelectItem>
+                    <SelectItem value="finance_user">Finance User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" className="w-full" disabled={createUser.isPending}>
+                {createUser.isPending ? "Creating..." : "Create User"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
