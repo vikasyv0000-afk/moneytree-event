@@ -49,58 +49,214 @@ export type Database = {
       }
       events: {
         Row: {
+          additional_remarks: string | null
+          adjustment: number | null
+          advance_received: string | null
+          area: string | null
+          cash_banking_date: string | null
+          cash_deposit: number | null
+          category: string | null
+          city: string | null
           client_name: string
+          client_sub_name: string | null
+          cogs: number | null
+          commission_amount: number | null
+          commission_paid_from_sale: boolean | null
+          commission_rent_with_invoice: number | null
+          commission_rent_without_invoice: number | null
           created_at: string
           created_by: string | null
+          ebitda: number | null
+          ebitda_percent: number | null
+          erp_invoice_no: string | null
           event_date: string
           event_name: string
+          event_qr_reference: string | null
+          event_ref_code: string | null
+          event_team_remarks: string | null
+          finance_clearance: string | null
           financial_year_id: string | null
+          full_payment_received: boolean | null
+          gst_amount: number | null
+          gst_exempted: boolean | null
           id: string
+          invoice_code: string | null
+          invoice_date: string | null
           is_locked: boolean
+          local_purchase: number | null
+          logistic_expense: number | null
+          manpower_cost: number | null
+          miscellaneous_expense: number | null
+          modified_by: string | null
+          month: string | null
+          net_sales: number | null
+          online_payment: number | null
+          other_consumables: number | null
           outstanding: number | null
+          payment_mode: string | null
+          payment_status: string | null
+          posist_code: string | null
           profit: number | null
+          referral_details: string | null
+          registration_status: string | null
+          rent_commission: number | null
+          spoc: string | null
+          staff_food_expense: number | null
+          state: string | null
           status: string
+          total_cost: number | null
+          total_crisps_sold: number | null
           total_expenses: number
           total_paid: number
+          total_payment_received: number | null
+          total_premix_sold: number | null
           total_revenue: number
+          total_sales: number | null
+          total_waffwich_sold: number | null
           updated_at: string
           venue: string
+          wastages_variance: number | null
+          zone: string | null
         }
         Insert: {
+          additional_remarks?: string | null
+          adjustment?: number | null
+          advance_received?: string | null
+          area?: string | null
+          cash_banking_date?: string | null
+          cash_deposit?: number | null
+          category?: string | null
+          city?: string | null
           client_name?: string
+          client_sub_name?: string | null
+          cogs?: number | null
+          commission_amount?: number | null
+          commission_paid_from_sale?: boolean | null
+          commission_rent_with_invoice?: number | null
+          commission_rent_without_invoice?: number | null
           created_at?: string
           created_by?: string | null
+          ebitda?: number | null
+          ebitda_percent?: number | null
+          erp_invoice_no?: string | null
           event_date: string
           event_name: string
+          event_qr_reference?: string | null
+          event_ref_code?: string | null
+          event_team_remarks?: string | null
+          finance_clearance?: string | null
           financial_year_id?: string | null
+          full_payment_received?: boolean | null
+          gst_amount?: number | null
+          gst_exempted?: boolean | null
           id?: string
+          invoice_code?: string | null
+          invoice_date?: string | null
           is_locked?: boolean
+          local_purchase?: number | null
+          logistic_expense?: number | null
+          manpower_cost?: number | null
+          miscellaneous_expense?: number | null
+          modified_by?: string | null
+          month?: string | null
+          net_sales?: number | null
+          online_payment?: number | null
+          other_consumables?: number | null
           outstanding?: number | null
+          payment_mode?: string | null
+          payment_status?: string | null
+          posist_code?: string | null
           profit?: number | null
+          referral_details?: string | null
+          registration_status?: string | null
+          rent_commission?: number | null
+          spoc?: string | null
+          staff_food_expense?: number | null
+          state?: string | null
           status?: string
+          total_cost?: number | null
+          total_crisps_sold?: number | null
           total_expenses?: number
           total_paid?: number
+          total_payment_received?: number | null
+          total_premix_sold?: number | null
           total_revenue?: number
+          total_sales?: number | null
+          total_waffwich_sold?: number | null
           updated_at?: string
           venue?: string
+          wastages_variance?: number | null
+          zone?: string | null
         }
         Update: {
+          additional_remarks?: string | null
+          adjustment?: number | null
+          advance_received?: string | null
+          area?: string | null
+          cash_banking_date?: string | null
+          cash_deposit?: number | null
+          category?: string | null
+          city?: string | null
           client_name?: string
+          client_sub_name?: string | null
+          cogs?: number | null
+          commission_amount?: number | null
+          commission_paid_from_sale?: boolean | null
+          commission_rent_with_invoice?: number | null
+          commission_rent_without_invoice?: number | null
           created_at?: string
           created_by?: string | null
+          ebitda?: number | null
+          ebitda_percent?: number | null
+          erp_invoice_no?: string | null
           event_date?: string
           event_name?: string
+          event_qr_reference?: string | null
+          event_ref_code?: string | null
+          event_team_remarks?: string | null
+          finance_clearance?: string | null
           financial_year_id?: string | null
+          full_payment_received?: boolean | null
+          gst_amount?: number | null
+          gst_exempted?: boolean | null
           id?: string
+          invoice_code?: string | null
+          invoice_date?: string | null
           is_locked?: boolean
+          local_purchase?: number | null
+          logistic_expense?: number | null
+          manpower_cost?: number | null
+          miscellaneous_expense?: number | null
+          modified_by?: string | null
+          month?: string | null
+          net_sales?: number | null
+          online_payment?: number | null
+          other_consumables?: number | null
           outstanding?: number | null
+          payment_mode?: string | null
+          payment_status?: string | null
+          posist_code?: string | null
           profit?: number | null
+          referral_details?: string | null
+          registration_status?: string | null
+          rent_commission?: number | null
+          spoc?: string | null
+          staff_food_expense?: number | null
+          state?: string | null
           status?: string
+          total_cost?: number | null
+          total_crisps_sold?: number | null
           total_expenses?: number
           total_paid?: number
+          total_payment_received?: number | null
+          total_premix_sold?: number | null
           total_revenue?: number
+          total_sales?: number | null
+          total_waffwich_sold?: number | null
           updated_at?: string
           venue?: string
+          wastages_variance?: number | null
+          zone?: string | null
         }
         Relationships: [
           {
