@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,7 +111,7 @@ interface EventFormData {
 }
 
 const defaultForm: EventFormData = {
-  event_ref_code: "", event_date: undefined, invoice_date: undefined, invoice_code: "", erp_invoice_no: "", posist_code: "",
+   event_ref_code: "", event_date: undefined, invoice_date: undefined, invoice_code: "", erp_invoice_no: "", posist_code: "",
   event_name: "", client_name: "", client_sub_name: "", referral_details: "", registration_status: "Not Registered", gst_exempted: false,
   area: "", city: "", state: "", zone: "", venue: "", spoc: "", category: "Corporate",
   total_waffwich_sold: 0, total_premix_sold: 0, total_crisps_sold: 0, net_sales: 0, gst_amount: 0,
@@ -125,9 +125,19 @@ const CATEGORIES = ["Corporate", "Wedding", "Mall Activation", "Exhibition", "Pr
 const ZONES = ["North", "South", "East", "West", "Central"];
 
 export default function EventCreateForm({ onBack }: { onBack: () => void }) {
-  const { user } = useAuth();
-  const qc = useQueryClient();
-  const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+   const { user } = useAuth();
+   const qc = useQueryClient();
+   const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+   
+   // Auto-generate event code on mount
+   useMemo(() => {
+     if (!form.event_ref_code) {
+       const timestamp = Date.now().toString().slice(-6);
+       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+       const code = `EVT-${timestamp}${random}`.slice(0, 10);
+       setForm((prev) => ({ ...prev, event_ref_code: code }));
+     }
+   }, []);
 
   const set = useCallback(<K extends keyof EventFormData>(key: K, val: EventFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -298,7 +308,8 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Event Ref Code</Label>
-              <Input value={form.event_ref_code} onChange={(e) => set("event_ref_code", e.target.value)} placeholder="EVT-001" className="text-sm" />
+              <Input value={form.event_ref_code} disabled className="text-sm font-mono font-bold bg-primary/5 text-primary" />
+              <p className="text-xs text-muted-foreground">Auto-generated unique identifier</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Event Name *</Label>
