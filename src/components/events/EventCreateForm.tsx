@@ -151,8 +151,8 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
   const calc = useMemo(() => {
     const totalSales = form.net_sales + form.gst_amount;
     const totalCost = form.cogs + form.other_consumables + form.wastages_variance + form.manpower_cost + form.logistic_expense + form.staff_food_expense + form.local_purchase + form.rent_commission + form.miscellaneous_expense;
-    const ebitda = totalSales - totalCost;
-    const ebitdaPercent = totalSales > 0 ? (ebitda / totalSales) * 100 : 0;
+    const ebitda = form.net_sales - totalCost;
+    const ebitdaPercent = form.net_sales > 0 ? (ebitda / form.net_sales) * 100 : 0;
     const totalPayment = form.cash_deposit + form.online_payment;
     const commissionAmt = form.commission_paid_from_sale ? form.commission_amount : 0;
     let outstanding = totalSales - totalPayment - commissionAmt - form.adjustment;
