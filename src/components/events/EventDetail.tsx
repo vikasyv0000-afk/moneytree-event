@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,13 +6,109 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Lock } from "lucide-react";
+import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Pencil } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
 
-function fmt(n: number | null | undefined) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n ?? 0);
+function fmt(n: number) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 }
+
+function NumInput({ label, value, onChange, disabled }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type="number" min={0} step="0.01"
+        value={value || ""}
+        onChange={(e) => onChange(Math.max(0, parseFloat(e.target.value) || 0))}
+        disabled={disabled}
+        className="font-mono text-sm"
+        placeholder="0"
+      />
+    </div>
+  );
+}
+
+function DateField({ label, value, onChange, disabled }: { label: string; value: Date | undefined; onChange: (d: Date | undefined) => void; disabled?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" disabled={disabled} className={cn("w-full justify-start text-left font-normal text-sm", !value && "text-muted-foreground")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd MMM yyyy") : "Pick a date"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+interface EventFormData {
+  event_ref_code: string;
+  event_date: Date | undefined;
+  invoice_date: Date | undefined;
+  invoice_code: string;
+  erp_invoice_no: string;
+  posist_code: string;
+  event_name: string;
+  client_name: string;
+  client_sub_name: string;
+  referral_details: string;
+  registration_status: string;
+  gst_exempted: boolean;
+  area: string;
+  city: string;
+  state: string;
+  zone: string;
+  venue: string;
+  spoc: string;
+  category: string;
+  total_waffwich_sold: number;
+  total_premix_sold: number;
+  total_crisps_sold: number;
+  net_sales: number;
+  gst_amount: number;
+  cogs: number;
+  other_consumables: number;
+  wastages_variance: number;
+  manpower_cost: number;
+  logistic_expense: number;
+  staff_food_expense: number;
+  local_purchase: number;
+  rent_commission: number;
+  miscellaneous_expense: number;
+  payment_mode: string;
+  cash_deposit: number;
+  cash_banking_date: Date | undefined;
+  online_payment: number;
+  event_qr_reference: string;
+  commission_paid_from_sale: boolean;
+  commission_amount: number;
+  commission_rent_with_invoice: number;
+  commission_rent_without_invoice: number;
+  adjustment: number;
+  advance_received: string;
+  full_payment_received: boolean;
+  additional_remarks: string;
+  event_team_remarks: string;
+  finance_clearance: string;
+}
+
+const CATEGORIES = ["Corporate", "Wedding", "Mall Activation", "Exhibition", "Private Event", "Other"];
+const ZONES = ["North", "South", "East", "West", "Central"];
 
 interface Props {
   eventId: string;
@@ -20,12 +116,12 @@ interface Props {
 }
 
 export default function EventDetail({ eventId, onBack }: Props) {
-  const { isSuperAdmin, isEventsUser, isFinanceUser } = useAuth();
+  const { user, isSuperAdmin, isEventsUser, isFinanceUser } = useAuth();
   const qc = useQueryClient();
-  const canEditEvent = isSuperAdmin || isEventsUser;
-  const canManagePayments = isSuperAdmin || isFinanceUser;
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<EventFormData | null>(null);
 
-  const { data: event } = useQuery({
+  const { data: event, isLoading } = useQuery({
     queryKey: ["event", eventId],
     queryFn: async () => {
       const { data, error } = await supabase.from("events").select("*").eq("id", eventId).single();
@@ -34,215 +130,604 @@ export default function EventDetail({ eventId, onBack }: Props) {
     },
   });
 
-  const { data: revenueItems = [] } = useQuery({
-    queryKey: ["revenue", eventId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("revenue_items").select("*").eq("event_id", eventId);
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Populate form from event data
+  useEffect(() => {
+    if (event && !form) {
+      setForm(eventToForm(event));
+    }
+  }, [event]);
 
-  const { data: expenseItems = [] } = useQuery({
-    queryKey: ["expenses", eventId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("expense_items").select("*").eq("event_id", eventId);
-      if (error) throw error;
-      return data;
-    },
-  });
+  function eventToForm(e: any): EventFormData {
+    return {
+      event_ref_code: e.event_ref_code || "",
+      event_date: e.event_date ? parseISO(e.event_date) : undefined,
+      invoice_date: e.invoice_date ? parseISO(e.invoice_date) : undefined,
+      invoice_code: e.invoice_code || "",
+      erp_invoice_no: e.erp_invoice_no || "",
+      posist_code: e.posist_code || "",
+      event_name: e.event_name || "",
+      client_name: e.client_name || "",
+      client_sub_name: e.client_sub_name || "",
+      referral_details: e.referral_details || "",
+      registration_status: e.registration_status || "Not Registered",
+      gst_exempted: e.gst_exempted || false,
+      area: e.area || "",
+      city: e.city || "",
+      state: e.state || "",
+      zone: e.zone || "",
+      venue: e.venue || "",
+      spoc: e.spoc || "",
+      category: e.category || "Corporate",
+      total_waffwich_sold: e.total_waffwich_sold ?? 0,
+      total_premix_sold: e.total_premix_sold ?? 0,
+      total_crisps_sold: e.total_crisps_sold ?? 0,
+      net_sales: e.net_sales ?? 0,
+      gst_amount: e.gst_amount ?? 0,
+      cogs: e.cogs ?? 0,
+      other_consumables: e.other_consumables ?? 0,
+      wastages_variance: e.wastages_variance ?? 0,
+      manpower_cost: e.manpower_cost ?? 0,
+      logistic_expense: e.logistic_expense ?? 0,
+      staff_food_expense: e.staff_food_expense ?? 0,
+      local_purchase: e.local_purchase ?? 0,
+      rent_commission: e.rent_commission ?? 0,
+      miscellaneous_expense: e.miscellaneous_expense ?? 0,
+      payment_mode: e.payment_mode || "Online",
+      cash_deposit: e.cash_deposit ?? 0,
+      cash_banking_date: e.cash_banking_date ? parseISO(e.cash_banking_date) : undefined,
+      online_payment: e.online_payment ?? 0,
+      event_qr_reference: e.event_qr_reference || "",
+      commission_paid_from_sale: e.commission_paid_from_sale || false,
+      commission_amount: e.commission_amount ?? 0,
+      commission_rent_with_invoice: e.commission_rent_with_invoice ?? 0,
+      commission_rent_without_invoice: e.commission_rent_without_invoice ?? 0,
+      adjustment: e.adjustment ?? 0,
+      advance_received: e.advance_received || "NA",
+      full_payment_received: e.full_payment_received || false,
+      additional_remarks: e.additional_remarks || "",
+      event_team_remarks: e.event_team_remarks || "",
+      finance_clearance: e.finance_clearance || "Pending",
+    };
+  }
 
-  const { data: payments = [] } = useQuery({
-    queryKey: ["payments", eventId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("payments").select("*").eq("event_id", eventId);
-      if (error) throw error;
-      return data;
-    },
-  });
+  const set = useCallback(<K extends keyof EventFormData>(key: K, val: EventFormData[K]) => {
+    setForm((prev) => prev ? { ...prev, [key]: val } : prev);
+  }, []);
 
-  const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["event", eventId] });
-    qc.invalidateQueries({ queryKey: ["revenue", eventId] });
-    qc.invalidateQueries({ queryKey: ["expenses", eventId] });
-    qc.invalidateQueries({ queryKey: ["payments", eventId] });
-    qc.invalidateQueries({ queryKey: ["events"] });
-    qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+  const setNum = useCallback((key: keyof EventFormData, val: number) => {
+    setForm((prev) => prev ? { ...prev, [key]: val } : prev);
+  }, []);
+
+  const calc = useMemo(() => {
+    if (!form) return { totalSales: 0, totalCost: 0, ebitda: 0, ebitdaPercent: 0, totalPayment: 0, outstanding: 0, paymentStatus: "Pending" as const, agingDays: 0, agingLabel: "Recent" };
+    const totalSales = form.net_sales + form.gst_amount;
+    const totalCost = form.cogs + form.other_consumables + form.wastages_variance + form.manpower_cost + form.logistic_expense + form.staff_food_expense + form.local_purchase + form.rent_commission + form.miscellaneous_expense;
+    const ebitda = form.net_sales - totalCost;
+    const ebitdaPercent = form.net_sales > 0 ? (ebitda / form.net_sales) * 100 : 0;
+    const totalPayment = form.cash_deposit + form.online_payment;
+    const commissionAmt = form.commission_paid_from_sale ? form.commission_amount : 0;
+    let outstanding = totalSales - totalPayment - commissionAmt - form.adjustment;
+    if (form.full_payment_received) outstanding = 0;
+
+    let paymentStatus: "Full Paid" | "Partial" | "Pending" = "Pending";
+    if (form.full_payment_received) paymentStatus = "Full Paid";
+    else if (form.advance_received === "Yes") paymentStatus = "Partial";
+
+    const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
+    let agingLabel = "Recent";
+    if (agingDays > 30) agingLabel = "Overdue";
+    else if (agingDays > 7) agingLabel = "Attention";
+
+    return { totalSales, totalCost, ebitda, ebitdaPercent, totalPayment, outstanding, paymentStatus, agingDays, agingLabel };
+  }, [form]);
+
+  const buildPayload = () => {
+    if (!form || !form.event_name || !form.event_date || !form.client_name) {
+      throw new Error("Event Name, Date, and Client Name are required");
+    }
+    return {
+      event_ref_code: form.event_ref_code || null,
+      event_name: form.event_name,
+      event_date: format(form.event_date, "yyyy-MM-dd"),
+      invoice_date: form.invoice_date ? format(form.invoice_date, "yyyy-MM-dd") : null,
+      invoice_code: form.invoice_code, erp_invoice_no: form.erp_invoice_no, posist_code: form.posist_code,
+      client_name: form.client_name, client_sub_name: form.client_sub_name, referral_details: form.referral_details,
+      registration_status: form.registration_status, gst_exempted: form.gst_exempted,
+      area: form.area, city: form.city, state: form.state, zone: form.zone, venue: form.venue,
+      spoc: form.spoc, category: form.category,
+      total_waffwich_sold: form.total_waffwich_sold, total_premix_sold: form.total_premix_sold, total_crisps_sold: form.total_crisps_sold,
+      net_sales: form.net_sales, gst_amount: form.gst_amount,
+      cogs: form.cogs, other_consumables: form.other_consumables, wastages_variance: form.wastages_variance,
+      manpower_cost: form.manpower_cost, logistic_expense: form.logistic_expense, staff_food_expense: form.staff_food_expense,
+      local_purchase: form.local_purchase, rent_commission: form.rent_commission, miscellaneous_expense: form.miscellaneous_expense,
+      payment_mode: form.payment_mode, cash_deposit: form.cash_deposit,
+      cash_banking_date: form.cash_banking_date ? format(form.cash_banking_date, "yyyy-MM-dd") : null,
+      online_payment: form.online_payment, event_qr_reference: form.event_qr_reference,
+      commission_paid_from_sale: form.commission_paid_from_sale,
+      commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
+      commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
+      adjustment: form.adjustment, advance_received: form.advance_received, full_payment_received: form.full_payment_received,
+      additional_remarks: form.additional_remarks, event_team_remarks: form.event_team_remarks, finance_clearance: form.finance_clearance,
+    } as any;
   };
 
-  // Revenue
-  const [revDesc, setRevDesc] = useState("");
-  const [revAmt, setRevAmt] = useState("");
-  const addRevenue = useMutation({
+  // Save = draft save (no status change, stays editable)
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("revenue_items").insert({ event_id: eventId, description: revDesc, amount: parseFloat(revAmt) });
+      const payload = buildPayload();
+      const { error } = await supabase.from("events").update(payload).eq("id", eventId);
       if (error) throw error;
     },
-    onSuccess: () => { invalidateAll(); setRevDesc(""); setRevAmt(""); toast.success("Revenue added"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const deleteRevenue = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("revenue_items").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Deleted"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event", eventId] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+      toast.success("Changes saved");
+      setEditing(false);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Expenses
-  const [expDesc, setExpDesc] = useState("");
-  const [expAmt, setExpAmt] = useState("");
-  const [expCat, setExpCat] = useState("general");
-  const addExpense = useMutation({
+  // Submit = final submit (locks if full payment received via DB trigger)
+  const submitMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("expense_items").insert({ event_id: eventId, description: expDesc, amount: parseFloat(expAmt), category: expCat });
+      const payload = buildPayload();
+      const { error } = await supabase.from("events").update(payload).eq("id", eventId);
       if (error) throw error;
     },
-    onSuccess: () => { invalidateAll(); setExpDesc(""); setExpAmt(""); setExpCat("general"); toast.success("Expense added"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const deleteExpense = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("expense_items").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Deleted"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event", eventId] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+      toast.success("Event submitted successfully");
+      setEditing(false);
+      // Re-fetch event to get updated locked status
+      setForm(null);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Payments
-  const [payAmt, setPayAmt] = useState("");
-  const [payDate, setPayDate] = useState("");
-  const [payMethod, setPayMethod] = useState("bank_transfer");
-  const [payRef, setPayRef] = useState("");
-  const addPayment = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("payments").insert({ event_id: eventId, amount: parseFloat(payAmt), payment_date: payDate, payment_method: payMethod, reference: payRef });
-      if (error) throw error;
-    },
-    onSuccess: () => { invalidateAll(); setPayAmt(""); setPayDate(""); setPayRef(""); toast.success("Payment recorded"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (!event) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
+  if (isLoading || !event || !form) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   const isLocked = event.is_locked;
+  const canEdit = (isSuperAdmin || isEventsUser || isFinanceUser) && !isLocked;
+  const disabled = !editing;
+
+  const paymentBadge = calc.paymentStatus === "Full Paid"
+    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+    : calc.paymentStatus === "Partial"
+      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+      : "bg-red-500/15 text-red-400 border-red-500/30";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">{event.event_name}</h1>
-            {isLocked && <Lock className="h-4 w-4 text-primary" />}
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${event.status === "locked" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{event.status}</span>
+    <div className="space-y-6 pb-32">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">{event.event_name}</h1>
+              {isLocked && <Lock className="h-4 w-4 text-primary" />}
+              <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", paymentBadge)}>
+                {calc.paymentStatus}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">{event.client_name} · {event.venue} · {event.event_date}</p>
           </div>
-          <p className="text-sm text-muted-foreground">{event.client_name} · {event.venue} · {event.event_date}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isLocked && (
+            <span className="text-xs text-amber-400 flex items-center gap-1"><Lock className="h-3 w-3" /> Locked — Full Payment Received</span>
+          )}
+          {canEdit && !editing && (
+            <Button onClick={() => setEditing(true)} variant="outline">
+              <Pencil className="mr-2 h-4 w-4" />Edit
+            </Button>
+          )}
+          {editing && (
+            <>
+              <Button variant="outline" onClick={() => { setForm(eventToForm(event)); setEditing(false); }}>Cancel</Button>
+              <Button variant="secondary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                <Save className="mr-2 h-4 w-4" />{saveMutation.isPending ? "Saving..." : "Save Draft"}
+              </Button>
+              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+                <Send className="mr-2 h-4 w-4" />{submitMutation.isPending ? "Submitting..." : "Submit"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* KPI Summary */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Revenue</div><div className="font-mono text-lg font-bold">{fmt(event.total_revenue)}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Expenses</div><div className="font-mono text-lg font-bold text-destructive">{fmt(event.total_expenses)}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Profit</div><div className={`font-mono text-lg font-bold ${(event.profit ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(event.profit)}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Outstanding</div><div className="font-mono text-lg font-bold text-warning">{fmt(event.outstanding)}</div></CardContent></Card>
+      {/* Sticky Financial Summary */}
+      <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Card className="border-border/50">
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Sales</p>
+              <p className="font-mono text-lg font-bold">{fmt(calc.totalSales)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Cost</p>
+              <p className="font-mono text-lg font-bold">{fmt(calc.totalCost)}</p>
+            </CardContent>
+          </Card>
+          <Card className={cn("border-border/50", calc.ebitda >= 0 ? "border-emerald-500/30" : "border-red-500/30")}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1">
+                {calc.ebitda >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : <TrendingDown className="h-3 w-3 text-red-400" />}
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">EBITDA</p>
+              </div>
+              <p className={cn("font-mono text-lg font-bold", calc.ebitda >= 0 ? "text-emerald-400" : "text-red-400")}>{fmt(calc.ebitda)}</p>
+              <p className={cn("text-xs font-mono", calc.ebitda >= 0 ? "text-emerald-400/70" : "text-red-400/70")}>{calc.ebitdaPercent.toFixed(1)}%</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50">
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Received</p>
+              <p className="font-mono text-lg font-bold">{fmt(calc.totalPayment)}</p>
+            </CardContent>
+          </Card>
+          <Card className={cn("border-border/50", calc.outstanding > 0 ? "border-amber-500/30" : "border-emerald-500/30")}>
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Outstanding</p>
+              <p className={cn("font-mono text-lg font-bold", calc.outstanding > 0 ? "text-amber-400" : "text-emerald-400")}>{fmt(calc.outstanding)}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <Tabs defaultValue="revenue">
-        <TabsList>
-          <TabsTrigger value="revenue">Revenue ({revenueItems.length})</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses ({expenseItems.length})</TabsTrigger>
-          <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
-        </TabsList>
+      {/* Section 1: Basic Event Information */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Basic Event Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Event Ref Code</Label>
+              <Input value={form.event_ref_code} disabled className="text-sm font-mono font-bold bg-primary/5 text-primary" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Event Name *</Label>
+              <Input value={form.event_name} onChange={(e) => set("event_name", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <DateField label="Event Date *" value={form.event_date} onChange={(d) => set("event_date", d)} disabled={disabled} />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Month</Label>
+              <Input value={form.event_date ? format(form.event_date, "MMMM") : ""} disabled className="text-sm bg-muted/30" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Financial Year</Label>
+              <Input value={form.event_date ? `FY ${format(form.event_date, "yyyy")}` : ""} disabled className="text-sm bg-muted/30" />
+            </div>
+            <DateField label="Invoice Date" value={form.invoice_date} onChange={(d) => set("invoice_date", d)} disabled={disabled} />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Invoice Code</Label>
+              <Input value={form.invoice_code} onChange={(e) => set("invoice_code", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">ERP Invoice No.</Label>
+              <Input value={form.erp_invoice_no} onChange={(e) => set("erp_invoice_no", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Posist Code</Label>
+              <Input value={form.posist_code} onChange={(e) => set("posist_code", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Revenue Tab */}
-        <TabsContent value="revenue">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Revenue Items</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {canEditEvent && !isLocked && (
-                <form onSubmit={(e) => { e.preventDefault(); addRevenue.mutate(); }} className="flex gap-2">
-                  <Input placeholder="Description" value={revDesc} onChange={(e) => setRevDesc(e.target.value)} required className="flex-1" />
-                  <Input type="number" step="0.01" placeholder="Amount" value={revAmt} onChange={(e) => setRevAmt(e.target.value)} required className="w-32" />
-                  <Button type="submit" size="icon" disabled={addRevenue.isPending}><Plus className="h-4 w-4" /></Button>
-                </form>
-              )}
-              {revenueItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded border px-3 py-2">
-                  <span className="text-sm">{item.description}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-medium">{fmt(item.amount)}</span>
-                    {canEditEvent && !isLocked && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteRevenue.mutate(item.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {revenueItems.length === 0 && <p className="text-center text-sm text-muted-foreground">No revenue items</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Section 2: Client Information */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Client Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Client Name *</Label>
+              <Input value={form.client_name} onChange={(e) => set("client_name", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Client Sub Name</Label>
+              <Input value={form.client_sub_name} onChange={(e) => set("client_sub_name", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Referral Details</Label>
+              <Input value={form.referral_details} onChange={(e) => set("referral_details", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Registration Status</Label>
+              <Select value={form.registration_status} onValueChange={(v) => set("registration_status", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Registered">Registered</SelectItem>
+                  <SelectItem value="Not Registered">Not Registered</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3 pt-5">
+              <Switch checked={form.gst_exempted} onCheckedChange={(v) => set("gst_exempted", v)} disabled={disabled} />
+              <Label className="text-sm">GST Exempted</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Expenses Tab */}
-        <TabsContent value="expenses">
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Expense Items</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {canEditEvent && !isLocked && (
-                <form onSubmit={(e) => { e.preventDefault(); addExpense.mutate(); }} className="flex gap-2">
-                  <Input placeholder="Category" value={expCat} onChange={(e) => setExpCat(e.target.value)} className="w-28" />
-                  <Input placeholder="Description" value={expDesc} onChange={(e) => setExpDesc(e.target.value)} required className="flex-1" />
-                  <Input type="number" step="0.01" placeholder="Amount" value={expAmt} onChange={(e) => setExpAmt(e.target.value)} required className="w-32" />
-                  <Button type="submit" size="icon" disabled={addExpense.isPending}><Plus className="h-4 w-4" /></Button>
-                </form>
-              )}
-              {expenseItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded border px-3 py-2">
-                  <div>
-                    <span className="text-sm">{item.description}</span>
-                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{item.category}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-medium text-destructive">{fmt(item.amount)}</span>
-                    {canEditEvent && !isLocked && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteExpense.mutate(item.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {expenseItems.length === 0 && <p className="text-center text-sm text-muted-foreground">No expense items</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Section 3: Location */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Location Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Venue</Label>
+              <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Area</Label>
+              <Input value={form.area} onChange={(e) => set("area", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">City</Label>
+              <Input value={form.city} onChange={(e) => set("city", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">State</Label>
+              <Input value={form.state} onChange={(e) => set("state", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Zone</Label>
+              <Select value={form.zone} onValueChange={(v) => set("zone", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Payments Tab */}
-        <TabsContent value="payments">
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Payments</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {canManagePayments && !isLocked && (
-                <form onSubmit={(e) => { e.preventDefault(); addPayment.mutate(); }} className="flex flex-wrap gap-2">
-                  <Input type="number" step="0.01" placeholder="Amount" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} required className="w-32" />
-                  <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} required className="w-40" />
-                  <Input placeholder="Method" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="w-32" />
-                  <Input placeholder="Reference" value={payRef} onChange={(e) => setPayRef(e.target.value)} className="flex-1" />
-                  <Button type="submit" disabled={addPayment.isPending}><Plus className="mr-1 h-4 w-4" />Record</Button>
-                </form>
-              )}
-              {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded border px-3 py-2">
-                  <div className="text-sm">
-                    <span className="font-mono font-medium text-primary">{fmt(p.amount)}</span>
-                    <span className="ml-2 text-muted-foreground">{p.payment_date}</span>
-                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{p.payment_method}</span>
-                    {p.reference && <span className="ml-2 text-xs text-muted-foreground">Ref: {p.reference}</span>}
-                  </div>
-                </div>
-              ))}
-              {payments.length === 0 && <p className="text-center text-sm text-muted-foreground">No payments recorded</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Section 4: Event Management */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Event Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">SPOC</Label>
+              <Input value={form.spoc} onChange={(e) => set("spoc", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Category</Label>
+              <Select value={form.category} onValueChange={(v) => set("category", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 5: Sales */}
+      <Card className="border-emerald-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-emerald-400">Sales</CardTitle>
+            <div className="rounded-lg bg-emerald-500/10 px-4 py-2 font-mono text-lg font-bold text-emerald-400">
+              Total: {fmt(calc.totalSales)}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <NumInput label="Total Waffwich Sold" value={form.total_waffwich_sold} onChange={(v) => setNum("total_waffwich_sold", v)} disabled={disabled} />
+            <NumInput label="Total Premix Sold" value={form.total_premix_sold} onChange={(v) => setNum("total_premix_sold", v)} disabled={disabled} />
+            <NumInput label="Total Crisps Sold" value={form.total_crisps_sold} onChange={(v) => setNum("total_crisps_sold", v)} disabled={disabled} />
+            <NumInput label="Net Sales" value={form.net_sales} onChange={(v) => setNum("net_sales", v)} disabled={disabled} />
+            <NumInput label="GST" value={form.gst_amount} onChange={(v) => setNum("gst_amount", v)} disabled={disabled} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 6: Expenses */}
+      <Card className="border-red-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-red-400">Expenses</CardTitle>
+            <div className="rounded-lg bg-red-500/10 px-4 py-2 font-mono text-lg font-bold text-red-400">
+              Total: {fmt(calc.totalCost)}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <NumInput label="COGS" value={form.cogs} onChange={(v) => setNum("cogs", v)} disabled={disabled} />
+            <NumInput label="Other Consumables" value={form.other_consumables} onChange={(v) => setNum("other_consumables", v)} disabled={disabled} />
+            <NumInput label="Wastages / Variance" value={form.wastages_variance} onChange={(v) => setNum("wastages_variance", v)} disabled={disabled} />
+            <NumInput label="Manpower Cost" value={form.manpower_cost} onChange={(v) => setNum("manpower_cost", v)} disabled={disabled} />
+            <NumInput label="Logistic Expense" value={form.logistic_expense} onChange={(v) => setNum("logistic_expense", v)} disabled={disabled} />
+            <NumInput label="Staff Food Expense" value={form.staff_food_expense} onChange={(v) => setNum("staff_food_expense", v)} disabled={disabled} />
+            <NumInput label="Local Purchase" value={form.local_purchase} onChange={(v) => setNum("local_purchase", v)} disabled={disabled} />
+            <NumInput label="Rent / Commission" value={form.rent_commission} onChange={(v) => setNum("rent_commission", v)} disabled={disabled} />
+            <NumInput label="Miscellaneous" value={form.miscellaneous_expense} onChange={(v) => setNum("miscellaneous_expense", v)} disabled={disabled} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 7: Profitability KPI */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className={cn("border-2", calc.ebitda >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5")}>
+          <CardContent className="flex items-center gap-4 p-6">
+            {calc.ebitda >= 0 ? <TrendingUp className="h-10 w-10 text-emerald-400" /> : <TrendingDown className="h-10 w-10 text-red-400" />}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">EBITDA</p>
+              <p className={cn("font-mono text-3xl font-bold", calc.ebitda >= 0 ? "text-emerald-400" : "text-red-400")}>{fmt(calc.ebitda)}</p>
+              <p className="text-sm text-muted-foreground">{calc.ebitda >= 0 ? "Profit" : "Loss"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={cn("border-2", calc.ebitdaPercent >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5")}>
+          <CardContent className="flex items-center gap-4 p-6">
+            <IndianRupee className={cn("h-10 w-10", calc.ebitdaPercent >= 0 ? "text-emerald-400" : "text-red-400")} />
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">EBITDA %</p>
+              <p className={cn("font-mono text-3xl font-bold", calc.ebitdaPercent >= 0 ? "text-emerald-400" : "text-red-400")}>{calc.ebitdaPercent.toFixed(1)}%</p>
+              <p className="text-sm text-muted-foreground">Margin</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section 8: Banking & Collection */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Banking & Collection</CardTitle>
+            <div className="rounded-lg bg-primary/10 px-4 py-2 font-mono text-lg font-bold text-primary">
+              Received: {fmt(calc.totalPayment)}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Payment Mode</Label>
+              <Select value={form.payment_mode} onValueChange={(v) => set("payment_mode", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
+                  <SelectItem value="Mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <NumInput label="Cash Deposit" value={form.cash_deposit} onChange={(v) => setNum("cash_deposit", v)} disabled={disabled} />
+            <DateField label="Cash Banking Date" value={form.cash_banking_date} onChange={(d) => set("cash_banking_date", d)} disabled={disabled} />
+            <NumInput label="Online Payment" value={form.online_payment} onChange={(v) => setNum("online_payment", v)} disabled={disabled} />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
+              <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} disabled={disabled} className="text-sm" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 9: Commission & Adjustments */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Commission & Adjustments</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Switch checked={form.commission_paid_from_sale} onCheckedChange={(v) => set("commission_paid_from_sale", v)} disabled={disabled} />
+            <Label className="text-sm">Commission Paid From Sale</Label>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {form.commission_paid_from_sale && (
+              <NumInput label="Commission Amount" value={form.commission_amount} onChange={(v) => setNum("commission_amount", v)} disabled={disabled} />
+            )}
+            <NumInput label="Commission/Rent With Invoice" value={form.commission_rent_with_invoice} onChange={(v) => setNum("commission_rent_with_invoice", v)} disabled={disabled} />
+            <NumInput label="Commission/Rent Without Invoice" value={form.commission_rent_without_invoice} onChange={(v) => setNum("commission_rent_without_invoice", v)} disabled={disabled} />
+            <NumInput label="Adjustment" value={form.adjustment} onChange={(v) => setNum("adjustment", v)} disabled={disabled} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 10: Outstanding */}
+      <Card className={cn("border-2", calc.outstanding <= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5")}>
+        <CardContent className="flex items-center justify-between p-6">
+          <div className="flex items-center gap-4">
+            {calc.outstanding > 0 ? <AlertTriangle className="h-10 w-10 text-amber-400" /> : <TrendingUp className="h-10 w-10 text-emerald-400" />}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Outstanding</p>
+              <p className={cn("font-mono text-3xl font-bold", calc.outstanding > 0 ? "text-amber-400" : "text-emerald-400")}>{fmt(calc.outstanding)}</p>
+              <p className="text-sm text-muted-foreground">{calc.outstanding <= 0 ? "Cleared" : "Pending"}</p>
+            </div>
+          </div>
+          <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", paymentBadge)}>
+            {calc.paymentStatus}
+          </span>
+        </CardContent>
+      </Card>
+
+      {/* Section 11: Payment Status */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Payment Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Advance Received</Label>
+              <Select value={form.advance_received} onValueChange={(v) => set("advance_received", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="NA">N/A</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3 pt-5">
+              <Switch checked={form.full_payment_received} onCheckedChange={(v) => set("full_payment_received", v)} disabled={disabled} />
+              <Label className="text-sm">Full Payment Received</Label>
+              {form.full_payment_received && <span className="text-xs text-amber-400">⚠ Event will be locked on submit</span>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 12: Remarks & Finance */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Remarks & Finance Clearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Additional Remarks</Label>
+              <Textarea value={form.additional_remarks} onChange={(e) => set("additional_remarks", e.target.value)} rows={3} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Event Team Remarks</Label>
+              <Textarea value={form.event_team_remarks} onChange={(e) => set("event_team_remarks", e.target.value)} rows={3} disabled={disabled} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Finance Clearance</Label>
+              <Select value={form.finance_clearance} onValueChange={(v) => set("finance_clearance", v)} disabled={disabled}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Approved">Approved</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bottom actions when editing */}
+      {editing && (
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={() => { setForm(eventToForm(event)); setEditing(false); }}>Cancel</Button>
+          <Button variant="secondary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Save className="mr-2 h-4 w-4" />Save Draft
+          </Button>
+          <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+            <Send className="mr-2 h-4 w-4" />Submit
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
