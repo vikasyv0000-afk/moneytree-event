@@ -18,11 +18,12 @@ export default function Dashboard() {
     },
   });
 
+  const totalNetSales = events.reduce((s, e) => s + (e.net_sales ?? 0), 0);
   const totalRevenue = events.reduce((s, e) => s + (e.total_revenue ?? 0), 0);
   const totalExpenses = events.reduce((s, e) => s + (e.total_expenses ?? 0), 0);
   const totalPaid = events.reduce((s, e) => s + (e.total_paid ?? 0), 0);
   const totalOutstanding = events.reduce((s, e) => s + (e.outstanding ?? 0), 0);
-  const ebitda = totalRevenue - totalExpenses;
+  const ebitda = events.reduce((s, e) => s + (e.ebitda ?? 0), 0);
   const activeEvents = events.filter((e) => e.status === "active").length;
   const lockedEvents = events.filter((e) => e.status === "locked").length;
 

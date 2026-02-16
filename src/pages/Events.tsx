@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import EventDetail from "@/components/events/EventDetail";
 import EventCreateForm from "@/components/events/EventCreateForm";
 
@@ -28,6 +29,66 @@ export default function Events() {
     },
   });
 
+  const exportToExcel = () => {
+    if (events.length === 0) {
+      toast.error("No events to export");
+      return;
+    }
+    const rows = events.map((e) => ({
+      "Event Ref Code": e.event_ref_code ?? "",
+      "Event Name": e.event_name,
+      "Event Date": e.event_date,
+      "Month": e.month ?? "",
+      "Client Name": e.client_name,
+      "Client Sub Name": e.client_sub_name ?? "",
+      "Venue": e.venue,
+      "City": e.city ?? "",
+      "State": e.state ?? "",
+      "Zone": e.zone ?? "",
+      "Area": e.area ?? "",
+      "Category": e.category ?? "",
+      "SPOC": e.spoc ?? "",
+      "Net Sales": e.net_sales ?? 0,
+      "GST Amount": e.gst_amount ?? 0,
+      "Total Sales": e.total_sales ?? 0,
+      "COGS": e.cogs ?? 0,
+      "Other Consumables": e.other_consumables ?? 0,
+      "Wastages/Variance": e.wastages_variance ?? 0,
+      "Manpower Cost": e.manpower_cost ?? 0,
+      "Logistic Expense": e.logistic_expense ?? 0,
+      "Staff Food Expense": e.staff_food_expense ?? 0,
+      "Local Purchase": e.local_purchase ?? 0,
+      "Rent/Commission": e.rent_commission ?? 0,
+      "Miscellaneous": e.miscellaneous_expense ?? 0,
+      "Total Cost": e.total_cost ?? 0,
+      "EBITDA": e.ebitda ?? 0,
+      "EBITDA %": e.ebitda_percent ?? 0,
+      "Cash Deposit": e.cash_deposit ?? 0,
+      "Online Payment": e.online_payment ?? 0,
+      "Total Payment Received": e.total_payment_received ?? 0,
+      "Commission Amount": e.commission_amount ?? 0,
+      "Adjustment": e.adjustment ?? 0,
+      "Outstanding": e.outstanding ?? 0,
+      "Payment Status": e.payment_status ?? "",
+      "Advance Received": e.advance_received ?? "",
+      "Full Payment Received": e.full_payment_received ? "Yes" : "No",
+      "Payment Mode": e.payment_mode ?? "",
+      "Registration Status": e.registration_status ?? "",
+      "Finance Clearance": e.finance_clearance ?? "",
+      "Invoice Code": e.invoice_code ?? "",
+      "ERP Invoice No": e.erp_invoice_no ?? "",
+      "Posist Code": e.posist_code ?? "",
+      "Status": e.status,
+      "Referral Details": e.referral_details ?? "",
+      "Additional Remarks": e.additional_remarks ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Events");
+    XLSX.writeFile(wb, `Events_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success("Excel file downloaded!");
+  };
+
   if (showCreate) {
     return <EventCreateForm onBack={() => setShowCreate(false)} />;
   }
@@ -43,9 +104,12 @@ export default function Events() {
           <h1 className="text-2xl font-bold tracking-tight">Events</h1>
           <p className="text-sm text-muted-foreground">Manage events, revenue, expenses & payments</p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" />New Event</Button>
-        )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}><Download className="mr-2 h-4 w-4" />Export Excel</Button>
+          {canCreate && (
+            <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" />New Event</Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
