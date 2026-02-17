@@ -7,10 +7,10 @@ import {
   CalendarDays,
   Users,
   LogOut,
-  TrendingUp,
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import bwcLogo from "@/assets/bwc-logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -32,8 +32,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <TrendingUp className="h-6 w-6 text-sidebar-primary" />
-          <span className="text-lg font-bold text-sidebar-primary-foreground">Event P&L</span>
+          <img src={bwcLogo} alt="BWC Logo" className="h-8 w-8 object-contain" />
+          <span className="text-lg font-bold text-sidebar-primary-foreground">BWC Event Mgmt</span>
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {visibleNav.map((item) => {
@@ -75,8 +75,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <span className="font-bold">Event P&L</span>
+            <img src={bwcLogo} alt="BWC Logo" className="h-7 w-7 object-contain" />
+            <span className="font-bold">BWC Event Mgmt</span>
           </div>
           <div className="flex items-center gap-2">
             {visibleNav.map((item) => (
