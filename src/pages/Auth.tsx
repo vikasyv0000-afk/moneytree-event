@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { TrendingUp } from "lucide-react";
+import bwcLogo from "@/assets/bwc-logo.png";
 
 export default function Auth() {
   const { user, loading, signIn } = useAuth();
@@ -28,9 +28,9 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
-        <div className="flex items-center justify-center gap-2 text-primary">
-          <TrendingUp className="h-8 w-8" />
-          <span className="text-2xl font-bold tracking-tight text-foreground">Event P&L</span>
+        <div className="flex flex-col items-center justify-center gap-2">
+          <img src={bwcLogo} alt="BWC Logo" className="h-20 w-20 object-contain" />
+          <span className="text-2xl font-bold tracking-tight text-foreground">BWC Event Management</span>
         </div>
 
         <Card>
