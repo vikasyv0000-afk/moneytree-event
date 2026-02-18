@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,17 @@ function fmt(n: number | null | undefined) {
 
 export default function Events() {
   const { isSuperAdmin, isEventsUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>(searchParams.get("filter") || "");
   const canCreate = isSuperAdmin || isEventsUser;
+
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f) setActiveFilter(f);
+  }, [searchParams]);
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
@@ -100,6 +108,20 @@ export default function Events() {
   }
 
   const filteredEvents = events.filter((e) => {
+    // Apply dashboard filter
+    if (activeFilter === "outstanding") {
+      if ((e.outstanding ?? 0) <= 0) return false;
+    } else if (activeFilter === "paid") {
+      if ((e.outstanding ?? 0) > 0) return false;
+    } else if (activeFilter === "active") {
+      if (e.status !== "active") return false;
+    } else if (activeFilter === "locked") {
+      if (e.status !== "locked") return false;
+    } else if (activeFilter === "status") {
+      // show active + locked events
+      if (e.status !== "active" && e.status !== "locked") return false;
+    }
+    // Apply search
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -107,6 +129,19 @@ export default function Events() {
       (e.event_ref_code && e.event_ref_code.toLowerCase().includes(q))
     );
   });
+
+  const clearFilter = () => {
+    setActiveFilter("");
+    setSearchParams({});
+  };
+
+  const filterLabels: Record<string, string> = {
+    outstanding: "Outstanding Payments",
+    paid: "Fully Paid",
+    status: "Active & Locked",
+    active: "Active Only",
+    locked: "Locked Only",
+  };
 
   return (
     <div className="space-y-6">
@@ -132,6 +167,15 @@ export default function Events() {
           className="pl-9"
         />
       </div>
+      {activeFilter && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Filtered by:</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            {filterLabels[activeFilter] || activeFilter}
+            <button onClick={clearFilter} className="ml-1 hover:text-primary/70">✕</button>
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredEvents.map((event) => {
