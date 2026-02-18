@@ -17,6 +17,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -394,12 +396,30 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
               <Input value={form.area} onChange={(e) => set("area", e.target.value)} className="text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">City</Label>
-              <Input value={form.city} onChange={(e) => set("city", e.target.value)} className="text-sm" />
+              <Label className="text-xs text-muted-foreground">State</Label>
+              <SearchableSelect
+                value={form.state}
+                onValueChange={(v) => {
+                  set("state", v);
+                  set("city", ""); // reset city when state changes
+                }}
+                options={INDIA_STATES}
+                placeholder="Select State"
+                searchPlaceholder="Search state..."
+                emptyMessage="No state found."
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">State</Label>
-              <Input value={form.state} onChange={(e) => set("state", e.target.value)} className="text-sm" />
+              <Label className="text-xs text-muted-foreground">City</Label>
+              <SearchableSelect
+                value={form.city}
+                onValueChange={(v) => set("city", v)}
+                options={form.state ? getCitiesForState(form.state) : []}
+                placeholder={form.state ? "Select City" : "Select state first"}
+                searchPlaceholder="Search city..."
+                emptyMessage="No city found."
+                disabled={!form.state}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Zone</Label>
