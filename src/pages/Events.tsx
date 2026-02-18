@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Eye, Download } from "lucide-react";
+import { Plus, Eye, Download, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import EventDetail from "@/components/events/EventDetail";
 import EventCreateForm from "@/components/events/EventCreateForm";
@@ -18,6 +19,7 @@ export default function Events() {
   const { isSuperAdmin, isEventsUser } = useAuth();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
   const canCreate = isSuperAdmin || isEventsUser;
 
   const { data: events = [] } = useQuery({
@@ -97,6 +99,15 @@ export default function Events() {
     return <EventDetail eventId={selectedEventId} onBack={() => setSelectedEventId(null)} />;
   }
 
+  const filteredEvents = events.filter((e) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      e.event_name?.toLowerCase().includes(q) ||
+      (e.event_ref_code && e.event_ref_code.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -112,8 +123,18 @@ export default function Events() {
         </div>
       </div>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by event name or event code..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {events.map((event) => {
+        {filteredEvents.map((event) => {
           const paymentStatus = (event as any).payment_status || event.status;
           const badgeClass = paymentStatus === "Full Paid"
             ? "bg-emerald-500/15 text-emerald-400"
@@ -163,8 +184,10 @@ export default function Events() {
             </Card>
           );
         })}
-        {events.length === 0 && (
-          <div className="col-span-full py-12 text-center text-muted-foreground">No events yet.</div>
+        {filteredEvents.length === 0 && (
+          <div className="col-span-full py-12 text-center text-muted-foreground">
+            {search.trim() ? "No events match your search." : "No events yet."}
+          </div>
         )}
       </div>
     </div>
