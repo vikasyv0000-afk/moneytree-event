@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, DollarSign, Clock, CheckCircle, AlertCircle } from "lucide-react";
@@ -9,6 +10,7 @@ function fmt(n: number | null | undefined) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: events = [] } = useQuery({
     queryKey: ["events-dashboard"],
     queryFn: async () => {
@@ -28,12 +30,12 @@ export default function Dashboard() {
   const lockedEvents = events.filter((e) => e.status === "locked").length;
 
   const kpis = [
-    { label: "Total Revenue", value: fmt(totalRevenue), icon: DollarSign, color: "text-primary" },
-    { label: "Total Costs", value: fmt(totalExpenses), icon: TrendingDown, color: "text-destructive" },
-    { label: "EBITDA", value: fmt(ebitda), icon: TrendingUp, color: ebitda >= 0 ? "text-primary" : "text-destructive" },
-    { label: "Outstanding", value: fmt(totalOutstanding), icon: Clock, color: "text-warning" },
-    { label: "Paid", value: fmt(totalPaid), icon: CheckCircle, color: "text-primary" },
-    { label: "Active / Locked", value: `${activeEvents} / ${lockedEvents}`, icon: AlertCircle, color: "text-muted-foreground" },
+    { label: "Total Revenue", value: fmt(totalRevenue), icon: DollarSign, color: "text-primary", filter: "" },
+    { label: "Total Costs", value: fmt(totalExpenses), icon: TrendingDown, color: "text-destructive", filter: "" },
+    { label: "EBITDA", value: fmt(ebitda), icon: TrendingUp, color: ebitda >= 0 ? "text-primary" : "text-destructive", filter: "" },
+    { label: "Outstanding", value: fmt(totalOutstanding), icon: Clock, color: "text-warning", filter: "outstanding" },
+    { label: "Paid", value: fmt(totalPaid), icon: CheckCircle, color: "text-primary", filter: "paid" },
+    { label: "Active / Locked", value: `${activeEvents} / ${lockedEvents}`, icon: AlertCircle, color: "text-muted-foreground", filter: "status" },
   ];
 
   return (
@@ -46,7 +48,10 @@ export default function Dashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <Card>
+            <Card
+              className={kpi.filter ? "cursor-pointer transition-shadow hover:shadow-md" : ""}
+              onClick={() => kpi.filter && navigate(`/events?filter=${kpi.filter}`)}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
