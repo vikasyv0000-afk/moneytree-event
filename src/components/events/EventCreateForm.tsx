@@ -130,6 +130,27 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const { user } = useAuth();
    const qc = useQueryClient();
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+
+   // Fetch SPOCs and Clients for searchable selects
+   const { data: spocs = [] } = useQuery({
+     queryKey: ["spocs"],
+     queryFn: async () => {
+       const { data, error } = await supabase.from("spocs").select("name").order("name");
+       if (error) throw error;
+       return data.map((s: any) => s.name as string);
+     },
+   });
+
+   const { data: clients = [] } = useQuery({
+     queryKey: ["clients-list"],
+     queryFn: async () => {
+       const { data, error } = await supabase.from("clients").select("client_name, client_sub_name").order("client_name");
+       if (error) throw error;
+       return data as { client_name: string; client_sub_name: string }[];
+     },
+   });
+
+   const clientNames = useMemo(() => clients.map((c) => c.client_name), [clients]);
    
    // Auto-generate event code on mount
    useMemo(() => {
