@@ -31,9 +31,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <img src={bwcLogo} alt="BWC Logo" className="h-8 w-8 object-contain" />
-          <span className="text-lg font-bold text-sidebar-primary-foreground">BWC Event Mgmt</span>
+        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+          <img src={bwcLogo} alt="BWC Logo" className="h-9 w-9 object-contain" />
+          <span className="text-lg font-extrabold text-sidebar-primary">BWC Events</span>
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {visibleNav.map((item) => {
@@ -43,9 +43,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
                   active
-                    ? "bg-sidebar-accent text-sidebar-primary"
+                    ? "bg-sidebar-primary/15 text-sidebar-primary"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
@@ -56,15 +56,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="border-t border-sidebar-border p-4">
-          <div className="mb-2 truncate text-xs text-sidebar-foreground">{user?.email}</div>
+          <div className="mb-2 truncate text-xs font-medium text-sidebar-foreground">{user?.email}</div>
           <div className="mb-3 flex flex-wrap gap-1">
             {roles.map((r) => (
-              <span key={r} className="rounded bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-sidebar-primary">
+              <span key={r} className="rounded-full bg-sidebar-primary/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sidebar-primary">
                 {r.replace("_", " ")}
               </span>
             ))}
           </div>
-          <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground hover:text-sidebar-accent-foreground" onClick={signOut}>
+          <Button variant="ghost" size="sm" className="w-full justify-start rounded-xl text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={signOut}>
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>
@@ -75,18 +75,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
-            <img src={bwcLogo} alt="BWC Logo" className="h-7 w-7 object-contain" />
-            <span className="font-bold">BWC Event Mgmt</span>
+            <img src={bwcLogo} alt="BWC Logo" className="h-8 w-8 object-contain" />
+            <span className="font-extrabold text-primary">BWC Events</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {visibleNav.map((item) => (
               <Link key={item.to} to={item.to}>
-                <Button variant={location.pathname === item.to ? "default" : "ghost"} size="icon" className="h-8 w-8">
+                <Button variant={location.pathname === item.to ? "default" : "ghost"} size="icon" className="h-9 w-9 rounded-xl">
                   <item.icon className="h-4 w-4" />
                 </Button>
               </Link>
             ))}
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={signOut}>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={signOut}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

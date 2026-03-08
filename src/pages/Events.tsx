@@ -108,7 +108,6 @@ export default function Events() {
   }
 
   const filteredEvents = events.filter((e) => {
-    // Apply dashboard filter
     if (activeFilter === "outstanding") {
       if ((e.outstanding ?? 0) <= 0) return false;
     } else if (activeFilter === "paid") {
@@ -118,10 +117,8 @@ export default function Events() {
     } else if (activeFilter === "locked") {
       if (e.status !== "locked") return false;
     } else if (activeFilter === "status") {
-      // show active + locked events
       if (e.status !== "active" && e.status !== "locked") return false;
     }
-    // Apply search
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -144,16 +141,16 @@ export default function Events() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 waffle-pattern min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Events</h1>
-          <p className="text-sm text-muted-foreground">Manage events, revenue, expenses & payments</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Events</h1>
+          <p className="text-sm font-medium text-muted-foreground">Manage events, revenue, expenses & payments</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={exportToExcel}><Download className="mr-2 h-4 w-4" />Export Excel</Button>
+          <Button variant="outline" className="rounded-xl font-semibold" onClick={exportToExcel}><Download className="mr-2 h-4 w-4" />Export Excel</Button>
           {canCreate && (
-            <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" />New Event</Button>
+            <Button className="rounded-xl font-semibold" onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" />New Event</Button>
           )}
         </div>
       </div>
@@ -164,15 +161,15 @@ export default function Events() {
           placeholder="Search by event name or event code..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+          className="pl-9 rounded-xl"
         />
       </div>
       {activeFilter && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filtered by:</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <span className="text-sm font-medium text-muted-foreground">Filtered by:</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
             {filterLabels[activeFilter] || activeFilter}
-            <button onClick={clearFilter} className="ml-1 hover:text-primary/70">✕</button>
+            <button onClick={clearFilter} className="ml-1 hover:opacity-70">✕</button>
           </span>
         </div>
       )}
@@ -181,46 +178,46 @@ export default function Events() {
         {filteredEvents.map((event) => {
           const paymentStatus = (event as any).payment_status || event.status;
           const badgeClass = paymentStatus === "Full Paid"
-            ? "bg-emerald-500/15 text-emerald-400"
+            ? "bg-success/15 text-success"
             : paymentStatus === "Partial"
-              ? "bg-amber-500/15 text-amber-400"
+              ? "bg-warning/15 text-warning"
               : event.status === "locked"
-                ? "bg-primary/10 text-primary"
+                ? "bg-amber-800/15 text-amber-800"
                 : event.status === "cancelled"
                   ? "bg-destructive/10 text-destructive"
-                  : "bg-muted text-muted-foreground";
+                  : "bg-success/15 text-success";
 
           return (
-            <Card key={event.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setSelectedEventId(event.id)}>
+            <Card key={event.id} className="cursor-pointer rounded-2xl border-0 shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" onClick={() => setSelectedEventId(event.id)}>
               <CardHeader className="flex flex-row items-start justify-between pb-2">
                 <div>
-                  <CardTitle className="text-base">{event.event_name}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{event.client_name} · {event.venue}</p>
+                  <CardTitle className="text-base font-bold">{event.event_name}</CardTitle>
+                  <p className="text-xs font-medium text-muted-foreground">{event.client_name} · {event.venue}</p>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${badgeClass}`}>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
                   {paymentStatus || event.status}
                 </span>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground">Revenue</span>
-                    <div className="font-mono font-semibold">{fmt(event.total_revenue)}</div>
+                    <span className="text-muted-foreground font-medium">Revenue</span>
+                    <div className="font-mono font-bold">{fmt(event.total_revenue)}</div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Profit</span>
-                    <div className={`font-mono font-semibold ${(event.profit ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(event.profit)}</div>
+                    <span className="text-muted-foreground font-medium">Profit</span>
+                    <div className={`font-mono font-bold ${(event.profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{fmt(event.profit)}</div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Paid</span>
-                    <div className="font-mono font-semibold">{fmt(event.total_paid)}</div>
+                    <span className="text-muted-foreground font-medium">Paid</span>
+                    <div className="font-mono font-bold">{fmt(event.total_paid)}</div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Outstanding</span>
-                    <div className="font-mono font-semibold text-amber-400">{fmt(event.outstanding)}</div>
+                    <span className="text-muted-foreground font-medium">Outstanding</span>
+                    <div className="font-mono font-bold text-warning">{fmt(event.outstanding)}</div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground font-medium">
                   <Eye className="h-3 w-3" />
                   {event.event_date}
                 </div>
@@ -229,7 +226,7 @@ export default function Events() {
           );
         })}
         {filteredEvents.length === 0 && (
-          <div className="col-span-full py-12 text-center text-muted-foreground">
+          <div className="col-span-full py-12 text-center text-muted-foreground font-medium">
             {search.trim() ? "No events match your search." : "No events yet."}
           </div>
         )}

@@ -2,99 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
+    --background: 40 50% 96%;
+    --foreground: 25 30% 14%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card: 40 40% 99%;
+    --card-foreground: 25 30% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 25 30% 14%;
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 40 95% 48%;
+    --primary-foreground: 25 30% 14%;
 
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 220 25% 10%;
+    --secondary: 35 40% 90%;
+    --secondary-foreground: 25 30% 14%;
 
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 38 30% 93%;
+    --muted-foreground: 25 15% 46%;
 
-    --accent: 220 14% 92%;
-    --accent-foreground: 220 25% 10%;
+    --accent: 30 60% 88%;
+    --accent-foreground: 25 30% 14%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 142 60% 42%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 30 90% 50%;
+    --warning-foreground: 25 30% 14%;
 
-    --border: 220 13% 89%;
-    --input: 220 13% 89%;
-    --ring: 160 84% 39%;
+    --border: 35 25% 86%;
+    --input: 35 25% 86%;
+    --ring: 40 95% 48%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 220 25% 10%;
-    --sidebar-foreground: 220 14% 80%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 16%;
-    --sidebar-accent-foreground: 220 14% 90%;
-    --sidebar-border: 220 20% 18%;
-    --sidebar-ring: 160 84% 39%;
-  }
-
-  .dark {
-    --background: 222 25% 6%;
-    --foreground: 210 20% 92%;
-
-    --card: 222 22% 9%;
-    --card-foreground: 210 20% 92%;
-
-    --popover: 222 22% 9%;
-    --popover-foreground: 210 20% 92%;
-
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 18% 14%;
-    --secondary-foreground: 210 20% 92%;
-
-    --muted: 220 18% 14%;
-    --muted-foreground: 220 10% 55%;
-
-    --accent: 220 18% 16%;
-    --accent-foreground: 210 20% 92%;
-
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 160 84% 39%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --border: 220 18% 16%;
-    --input: 220 18% 16%;
-    --ring: 160 84% 39%;
-
-    --sidebar-background: 222 28% 5%;
-    --sidebar-foreground: 220 14% 75%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 22% 10%;
-    --sidebar-accent-foreground: 220 14% 85%;
-    --sidebar-border: 222 22% 12%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-background: 25 30% 16%;
+    --sidebar-foreground: 38 30% 80%;
+    --sidebar-primary: 40 95% 48%;
+    --sidebar-primary-foreground: 25 30% 14%;
+    --sidebar-accent: 25 25% 22%;
+    --sidebar-accent-foreground: 38 40% 92%;
+    --sidebar-border: 25 22% 24%;
+    --sidebar-ring: 40 95% 48%;
   }
 }
 
@@ -111,5 +66,16 @@
 @layer utilities {
   .font-mono-financial {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  .waffle-pattern {
+    background-image: 
+      radial-gradient(circle at 20% 50%, hsl(40 95% 48% / 0.06) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, hsl(30 90% 50% / 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 60% 80%, hsl(40 95% 48% / 0.04) 0%, transparent 45%);
+  }
+
+  .waffle-radial {
+    background: radial-gradient(ellipse at center, hsl(40 60% 94%) 0%, hsl(40 50% 96%) 70%);
   }
 }
