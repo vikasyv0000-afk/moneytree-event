@@ -476,7 +476,14 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">SPOC</Label>
-              <Input value={form.spoc} onChange={(e) => set("spoc", e.target.value)} className="text-sm" />
+              <SearchableSelect
+                value={form.spoc}
+                onValueChange={(v) => set("spoc", v)}
+                options={spocs}
+                placeholder="Select SPOC"
+                searchPlaceholder="Search SPOC..."
+                emptyMessage="No SPOC found. Add in Masters."
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Category</Label>
