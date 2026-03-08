@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,27 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const { user } = useAuth();
    const qc = useQueryClient();
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+
+   // Fetch SPOCs and Clients for searchable selects
+   const { data: spocs = [] } = useQuery({
+     queryKey: ["spocs"],
+     queryFn: async () => {
+       const { data, error } = await supabase.from("spocs").select("name").order("name");
+       if (error) throw error;
+       return data.map((s: any) => s.name as string);
+     },
+   });
+
+   const { data: clients = [] } = useQuery({
+     queryKey: ["clients-list"],
+     queryFn: async () => {
+       const { data, error } = await supabase.from("clients").select("client_name, client_sub_name").order("client_name");
+       if (error) throw error;
+       return data as { client_name: string; client_sub_name: string }[];
+     },
+   });
+
+   const clientNames = useMemo(() => clients.map((c) => c.client_name), [clients]);
    
    // Auto-generate event code on mount
    useMemo(() => {
@@ -350,9 +371,21 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
+             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Client Name *</Label>
-              <Input value={form.client_name} onChange={(e) => set("client_name", e.target.value)} required className="text-sm" />
+              <SearchableSelect
+                value={form.client_name}
+                onValueChange={(v) => {
+                  set("client_name", v);
+                  // Auto-fill sub name from clients list
+                  const match = clients.find((c) => c.client_name === v);
+                  if (match?.client_sub_name) set("client_sub_name", match.client_sub_name);
+                }}
+                options={clientNames}
+                placeholder="Select Client"
+                searchPlaceholder="Search client..."
+                emptyMessage="No client found. Add in Masters."
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Client Sub Name</Label>
@@ -443,7 +476,14 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">SPOC</Label>
-              <Input value={form.spoc} onChange={(e) => set("spoc", e.target.value)} className="text-sm" />
+              <SearchableSelect
+                value={form.spoc}
+                onValueChange={(v) => set("spoc", v)}
+                options={spocs}
+                placeholder="Select SPOC"
+                searchPlaceholder="Search SPOC..."
+                emptyMessage="No SPOC found. Add in Masters."
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Category</Label>
