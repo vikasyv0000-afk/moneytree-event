@@ -151,16 +151,31 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    });
 
    const clientNames = useMemo(() => clients.map((c) => c.client_name), [clients]);
-   
-   // Auto-generate event code on mount
-   useMemo(() => {
-     if (!form.event_ref_code) {
-       const timestamp = Date.now().toString().slice(-6);
-       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-       const code = `EVT-${timestamp}${random}`.slice(0, 10);
-       setForm((prev) => ({ ...prev, event_ref_code: code }));
+
+   // Fetch next BWC code
+   const { data: nextCode } = useQuery({
+     queryKey: ["next-event-code"],
+     queryFn: async () => {
+       const { data } = await supabase
+         .from("events")
+         .select("event_ref_code")
+         .like("event_ref_code", "BWC%")
+         .order("event_ref_code", { ascending: false })
+         .limit(1);
+       if (data && data.length > 0) {
+         const lastNum = parseInt(data[0].event_ref_code.replace("BWC", ""), 10) || 0;
+         return `BWC${String(lastNum + 1).padStart(3, "0")}`;
+       }
+       return "BWC001";
+     },
+     staleTime: 0,
+   });
+
+   useEffect(() => {
+     if (nextCode && !form.event_ref_code.startsWith("BWC")) {
+       setForm((prev) => ({ ...prev, event_ref_code: nextCode }));
      }
-   }, []);
+   }, [nextCode]);
 
   const set = useCallback(<K extends keyof EventFormData>(key: K, val: EventFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
