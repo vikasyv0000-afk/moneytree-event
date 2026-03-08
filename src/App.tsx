@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Events from "@/pages/Events";
 import Users from "@/pages/Users";
 import AuditLog from "@/pages/AuditLog";
+import Masters from "@/pages/Masters";
 import AppLayout from "@/components/layout/AppLayout";
 
 const queryClient = new QueryClient();
