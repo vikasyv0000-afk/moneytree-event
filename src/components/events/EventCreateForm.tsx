@@ -371,9 +371,21 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
+             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Client Name *</Label>
-              <Input value={form.client_name} onChange={(e) => set("client_name", e.target.value)} required className="text-sm" />
+              <SearchableSelect
+                value={form.client_name}
+                onValueChange={(v) => {
+                  set("client_name", v);
+                  // Auto-fill sub name from clients list
+                  const match = clients.find((c) => c.client_name === v);
+                  if (match?.client_sub_name) set("client_sub_name", match.client_sub_name);
+                }}
+                options={clientNames}
+                placeholder="Select Client"
+                searchPlaceholder="Search client..."
+                emptyMessage="No client found. Add in Masters."
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Client Sub Name</Label>
