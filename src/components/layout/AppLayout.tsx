@@ -16,6 +16,7 @@ import bwcLogo from "@/assets/bwc-logo.png";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/events", icon: CalendarDays, label: "Events" },
+  { to: "/masters", icon: BookOpen, label: "Masters" },
   { to: "/audit", icon: ClipboardList, label: "Audit Log", roles: ["super_admin"] as const },
   { to: "/users", icon: Users, label: "Users", roles: ["super_admin"] as const },
 ];
