@@ -104,6 +104,7 @@ interface EventFormData {
   full_payment_received: boolean;
   additional_remarks: string;
   event_team_remarks: string;
+  remark: string;
   finance_clearance: string;
 }
 
@@ -186,6 +187,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       full_payment_received: e.full_payment_received || false,
       additional_remarks: e.additional_remarks || "",
       event_team_remarks: e.event_team_remarks || "",
+      remark: e.remark || "",
       finance_clearance: e.finance_clearance || "Pending",
     };
   }

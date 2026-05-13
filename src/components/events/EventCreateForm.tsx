@@ -262,6 +262,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         full_payment_received: form.full_payment_received,
         additional_remarks: form.additional_remarks,
         event_team_remarks: form.event_team_remarks,
+        remark: form.remark,
         finance_clearance: form.finance_clearance,
         created_by: user?.id,
       } as any);
@@ -604,6 +605,9 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Online">Online</SelectItem>
                   <SelectItem value="Mixed">Mixed</SelectItem>
+                  <SelectItem value="Paytm">Paytm</SelectItem>
+                  <SelectItem value="NEFT / Bank Transfer">NEFT / Bank Transfer</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -613,6 +617,10 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
               <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Remark</Label>
+              <Input value={form.remark} onChange={(e) => set("remark", e.target.value)} className="text-sm" placeholder="Enter remark" />
             </div>
           </div>
         </CardContent>
