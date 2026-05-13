@@ -109,6 +109,7 @@ interface EventFormData {
   full_payment_received: boolean;
   additional_remarks: string;
   event_team_remarks: string;
+  remark: string;
   finance_clearance: string;
 }
 
