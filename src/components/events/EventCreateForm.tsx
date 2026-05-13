@@ -109,6 +109,7 @@ interface EventFormData {
   full_payment_received: boolean;
   additional_remarks: string;
   event_team_remarks: string;
+  remark: string;
   finance_clearance: string;
 }
 
@@ -120,7 +121,7 @@ const defaultForm: EventFormData = {
   cogs: 0, other_consumables: 0, wastages_variance: 0, manpower_cost: 0, logistic_expense: 0, staff_food_expense: 0, local_purchase: 0, rent_commission: 0, miscellaneous_expense: 0,
   payment_mode: "Online", cash_deposit: 0, cash_banking_date: undefined, online_payment: 0, event_qr_reference: "",
   commission_paid_from_sale: false, commission_amount: 0, commission_rent_with_invoice: 0, commission_rent_without_invoice: 0, adjustment: 0,
-  advance_received: "NA", full_payment_received: false, additional_remarks: "", event_team_remarks: "", finance_clearance: "Pending",
+  advance_received: "NA", full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
 };
 
 const CATEGORIES = ["Corporate", "Wedding", "Mall Activation", "Exhibition", "Private Event", "Other"];
@@ -261,6 +262,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         full_payment_received: form.full_payment_received,
         additional_remarks: form.additional_remarks,
         event_team_remarks: form.event_team_remarks,
+        remark: form.remark,
         finance_clearance: form.finance_clearance,
         created_by: user?.id,
       } as any);
@@ -603,6 +605,9 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Online">Online</SelectItem>
                   <SelectItem value="Mixed">Mixed</SelectItem>
+                  <SelectItem value="Paytm">Paytm</SelectItem>
+                  <SelectItem value="NEFT / Bank Transfer">NEFT / Bank Transfer</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -612,6 +617,10 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
               <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Remark</Label>
+              <Input value={form.remark} onChange={(e) => set("remark", e.target.value)} className="text-sm" placeholder="Enter remark" />
             </div>
           </div>
         </CardContent>
