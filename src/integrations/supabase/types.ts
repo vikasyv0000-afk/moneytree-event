@@ -135,6 +135,7 @@ export type Database = {
           profit: number | null
           referral_details: string | null
           registration_status: string | null
+          remark: string | null
           rent_commission: number | null
           spoc: string | null
           staff_food_expense: number | null
@@ -205,6 +206,7 @@ export type Database = {
           profit?: number | null
           referral_details?: string | null
           registration_status?: string | null
+          remark?: string | null
           rent_commission?: number | null
           spoc?: string | null
           staff_food_expense?: number | null
@@ -275,6 +277,7 @@ export type Database = {
           profit?: number | null
           referral_details?: string | null
           registration_status?: string | null
+          remark?: string | null
           rent_commission?: number | null
           spoc?: string | null
           staff_food_expense?: number | null
