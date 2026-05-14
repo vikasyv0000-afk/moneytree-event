@@ -116,7 +116,7 @@ interface EventFormData {
 const defaultForm: EventFormData = {
    event_ref_code: "", event_date: undefined, invoice_date: undefined, invoice_code: "", erp_invoice_no: "", posist_code: "",
   event_name: "", client_name: "", client_sub_name: "", referral_details: "", registration_status: "Not Registered", gst_exempted: false,
-  area: "", city: "", state: "", zone: "", venue: "", spoc: "", category: "Corporate",
+  area: "", city: "", state: "", zone: "", venue: "", spoc: "", category: "Corporates",
   total_waffwich_sold: 0, total_premix_sold: 0, total_crisps_sold: 0, net_sales: 0, gst_amount: 0,
   cogs: 0, other_consumables: 0, wastages_variance: 0, manpower_cost: 0, logistic_expense: 0, staff_food_expense: 0, local_purchase: 0, rent_commission: 0, miscellaneous_expense: 0,
   payment_mode: "Online", cash_deposit: 0, cash_banking_date: undefined, online_payment: 0, event_qr_reference: "",
@@ -124,7 +124,7 @@ const defaultForm: EventFormData = {
   advance_received: "NA", full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
 };
 
-const CATEGORIES = ["Corporate", "Wedding", "Mall Activation", "Exhibition", "Private Event", "Other"];
+const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
 const ZONES = ["North", "South", "East", "West", "Central"];
 
 export default function EventCreateForm({ onBack }: { onBack: () => void }) {

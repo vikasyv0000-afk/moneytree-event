@@ -108,7 +108,7 @@ interface EventFormData {
   finance_clearance: string;
 }
 
-const CATEGORIES = ["Corporate", "Wedding", "Mall Activation", "Exhibition", "Private Event", "Other"];
+const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
 const ZONES = ["North", "South", "East", "West", "Central"];
 
 interface Props {
@@ -158,7 +158,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       zone: e.zone || "",
       venue: e.venue || "",
       spoc: e.spoc || "",
-      category: e.category || "Corporate",
+      category: e.category || "Corporates",
       total_waffwich_sold: e.total_waffwich_sold ?? 0,
       total_premix_sold: e.total_premix_sold ?? 0,
       total_crisps_sold: e.total_crisps_sold ?? 0,
