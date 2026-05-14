@@ -1,0 +1,1 @@
+ALTER TABLE public.events ALTER COLUMN category SET DEFAULT 'Corporates';
