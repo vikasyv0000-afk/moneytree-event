@@ -252,16 +252,17 @@ export default function EventDetail({ eventId, onBack }: Props) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = buildPayload();
-      const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["event", eventId] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+    onSuccess: (updatedEvent) => {
+      const syncedEvent = syncEventCaches(qc, updatedEvent);
+      logOutstandingSync("event-detail-save", syncedEvent);
+      invalidateEventQueries(qc, syncedEvent.id);
       toast.success("Changes saved");
       setEditing(false);
-      setForm(null); // re-sync form from refetched DB row (so computed fields reflect DB truth)
+      setForm(eventToForm(syncedEvent));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -270,17 +271,17 @@ export default function EventDetail({ eventId, onBack }: Props) {
   const submitMutation = useMutation({
     mutationFn: async () => {
       const payload = buildPayload();
-      const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["event", eventId] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+    onSuccess: (updatedEvent) => {
+      const syncedEvent = syncEventCaches(qc, updatedEvent);
+      logOutstandingSync("event-detail-submit", syncedEvent);
+      invalidateEventQueries(qc, syncedEvent.id);
       toast.success("Event submitted successfully");
       setEditing(false);
-      // Re-fetch event to get updated locked status
-      setForm(null);
+      setForm(eventToForm(syncedEvent));
     },
     onError: (e: Error) => toast.error(e.message),
   });
