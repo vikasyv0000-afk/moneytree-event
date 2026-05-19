@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, DollarSign, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
+import { logOutstandingMismatch, normalizeEventFinancials } from "@/lib/event-financials";
 
 function fmt(n: number | null | undefined) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n ?? 0);
@@ -16,9 +18,13 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase.from("events").select("*");
       if (error) throw error;
-      return data;
+      return (data ?? []).map((event) => normalizeEventFinancials(event));
     },
   });
+
+  useEffect(() => {
+    events.forEach((event) => logOutstandingMismatch("dashboard", event));
+  }, [events]);
 
   const totalNetSales = events.reduce((s, e) => s + (e.net_sales ?? 0), 0);
   const totalRevenue = events.reduce((s, e) => s + (e.total_revenue ?? 0), 0);

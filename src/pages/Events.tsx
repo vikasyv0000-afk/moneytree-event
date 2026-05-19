@@ -27,6 +27,7 @@ import * as XLSX from "xlsx";
 import EventDetail from "@/components/events/EventDetail";
 import EventCreateForm from "@/components/events/EventCreateForm";
 import { cn } from "@/lib/utils";
+import { logOutstandingMismatch, normalizeEventFinancials } from "@/lib/event-financials";
 
 function fmt(n: number | null | undefined) {
   return new Intl.NumberFormat("en-IN", {
@@ -77,9 +78,13 @@ export default function Events() {
         .select("*")
         .order("event_date", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data ?? []).map((event) => normalizeEventFinancials(event));
     },
   });
+
+  useEffect(() => {
+    events.forEach((event) => logOutstandingMismatch("events-table", event));
+  }, [events]);
 
   // Fetch creator profiles
   const { data: profiles = [] } = useQuery({
