@@ -3,7 +3,6 @@ import type { Database } from "@/integrations/supabase/types";
 export type EventRow = Database["public"]["Tables"]["events"]["Row"];
 
 type EventFinancialInput = {
-  [key: string]: unknown;
   adjustment?: number | null;
   advanceReceived?: string | null;
   advance_received?: string | null;
