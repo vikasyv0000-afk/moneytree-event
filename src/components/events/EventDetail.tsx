@@ -16,6 +16,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { calculateEventFinancials, logOutstandingMismatch, logOutstandingSync, normalizeEventFinancials } from "@/lib/event-financials";
+import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -127,7 +129,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase.from("events").select("*").eq("id", eventId).single();
       if (error) throw error;
-      return data;
+      return normalizeEventFinancials(data);
     },
   });
 
@@ -202,26 +204,18 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   const calc = useMemo(() => {
     if (!form) return { totalSales: 0, totalCost: 0, ebitda: 0, ebitdaPercent: 0, totalPayment: 0, outstanding: 0, paymentStatus: "Pending" as const, agingDays: 0, agingLabel: "Recent" };
-    const totalSales = form.net_sales + form.gst_amount;
-    const totalCost = form.cogs + form.other_consumables + form.wastages_variance + form.manpower_cost + form.logistic_expense + form.staff_food_expense + form.local_purchase + form.rent_commission + form.miscellaneous_expense;
-    const ebitda = form.net_sales - totalCost;
-    const ebitdaPercent = form.net_sales > 0 ? (ebitda / form.net_sales) * 100 : 0;
-    const totalPayment = form.cash_deposit + form.online_payment;
-    const commissionAmt = form.commission_paid_from_sale ? form.commission_amount : 0;
-    let outstanding = totalSales - totalPayment - commissionAmt - form.adjustment;
-    if (form.full_payment_received) outstanding = 0;
-
-    let paymentStatus: "Full Paid" | "Partial" | "Pending" = "Pending";
-    if (form.full_payment_received) paymentStatus = "Full Paid";
-    else if (form.advance_received === "Yes") paymentStatus = "Partial";
-
+    const financials = calculateEventFinancials(form);
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
-    return { totalSales, totalCost, ebitda, ebitdaPercent, totalPayment, outstanding, paymentStatus, agingDays, agingLabel };
+    return { ...financials, agingDays, agingLabel };
   }, [form]);
+
+  useEffect(() => {
+    if (event) logOutstandingMismatch("event-detail", event);
+  }, [event]);
 
   const buildPayload = () => {
     if (!form || !form.event_name || !form.event_date || !form.client_name) {
