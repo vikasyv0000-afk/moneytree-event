@@ -74,7 +74,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
             <img src={bwcLogo} alt="BWC Logo" className="h-8 w-8 object-contain" />
