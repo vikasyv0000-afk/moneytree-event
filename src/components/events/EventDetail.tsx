@@ -267,6 +267,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       qc.invalidateQueries({ queryKey: ["events-dashboard"] });
       toast.success("Changes saved");
       setEditing(false);
+      setForm(null); // re-sync form from refetched DB row (so computed fields reflect DB truth)
     },
     onError: (e: Error) => toast.error(e.message),
   });
