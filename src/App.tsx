@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,8 +12,33 @@ import Users from "@/pages/Users";
 import AuditLog from "@/pages/AuditLog";
 import Masters from "@/pages/Masters";
 import AppLayout from "@/components/layout/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
+
+function RealtimeEventSync() {
+  useEffect(() => {
+    const channel = supabase
+      .channel("events-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "events" },
+        (payload) => {
+          const eventId = typeof payload.new === "object" && payload.new && "id" in payload.new ? String(payload.new.id) : typeof payload.old === "object" && payload.old && "id" in payload.old ? String(payload.old.id) : undefined;
+          if (eventId) queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+          queryClient.invalidateQueries({ queryKey: ["events"] });
+          queryClient.invalidateQueries({ queryKey: ["events-dashboard"] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return null;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -38,6 +64,7 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <RealtimeEventSync />
       <Toaster />
       <Sonner />
       <BrowserRouter>
