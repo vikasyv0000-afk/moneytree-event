@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
+import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financials";
+import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -188,25 +190,13 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
 
   // Auto calculations
   const calc = useMemo(() => {
-    const totalSales = form.net_sales + form.gst_amount;
-    const totalCost = form.cogs + form.other_consumables + form.wastages_variance + form.manpower_cost + form.logistic_expense + form.staff_food_expense + form.local_purchase + form.rent_commission + form.miscellaneous_expense;
-    const ebitda = form.net_sales - totalCost;
-    const ebitdaPercent = form.net_sales > 0 ? (ebitda / form.net_sales) * 100 : 0;
-    const totalPayment = form.cash_deposit + form.online_payment;
-    const commissionAmt = form.commission_paid_from_sale ? form.commission_amount : 0;
-    let outstanding = totalSales - totalPayment - commissionAmt - form.adjustment;
-    if (form.full_payment_received) outstanding = 0;
-
-    let paymentStatus: "Full Paid" | "Partial" | "Pending" = "Pending";
-    if (form.full_payment_received) paymentStatus = "Full Paid";
-    else if (form.advance_received === "Yes") paymentStatus = "Partial";
-
+    const financials = calculateEventFinancials(form);
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
-    return { totalSales, totalCost, ebitda, ebitdaPercent, totalPayment, outstanding, paymentStatus, agingDays, agingLabel };
+    return { ...financials, agingDays, agingLabel };
   }, [form]);
 
   const saveMutation = useMutation({
@@ -214,7 +204,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
       if (!form.event_name || !form.event_date || !form.client_name) {
         throw new Error("Event Name, Date, and Client Name are required");
       }
-      const { error } = await supabase.from("events").insert({
+      const { data, error } = await supabase.from("events").insert({
         event_ref_code: form.event_ref_code || null,
         event_name: form.event_name,
         event_date: format(form.event_date, "yyyy-MM-dd"),
@@ -265,12 +255,14 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         remark: form.remark,
         finance_clearance: form.finance_clearance,
         created_by: user?.id,
-      } as any);
+      } as any).select("*").single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["events-dashboard"] });
+    onSuccess: (createdEvent) => {
+      const syncedEvent = syncEventCaches(qc, createdEvent);
+      logOutstandingSync("event-create", syncedEvent);
+      invalidateEventQueries(qc, syncedEvent.id);
       toast.success("Event created successfully");
       onBack();
     },
