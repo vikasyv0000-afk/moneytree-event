@@ -2,19 +2,45 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type EventRow = Database["public"]["Tables"]["events"]["Row"];
 
-type EventFinancialInput = Partial<EventRow> & {
+type EventFinancialInput = {
+  [key: string]: unknown;
   adjustment?: number | null;
   advanceReceived?: string | null;
+  advance_received?: string | null;
+  cash_deposit?: number | null;
   cashDeposit?: number | null;
+  cogs?: number | null;
+  commission_amount?: number | null;
   commissionAmount?: number | null;
+  commission_paid_from_sale?: boolean | null;
   commissionPaidFromSale?: boolean | null;
+  ebitda?: number | null;
+  event_name?: string | null;
+  full_payment_received?: boolean | null;
   fullPaymentReceived?: boolean | null;
+  gst_amount?: number | null;
   gstAmount?: number | null;
+  id?: string;
+  local_purchase?: number | null;
+  logistic_expense?: number | null;
+  manpower_cost?: number | null;
+  miscellaneous_expense?: number | null;
+  net_sales?: number | null;
   netSales?: number | null;
+  online_payment?: number | null;
   onlinePayment?: number | null;
+  other_consumables?: number | null;
+  outstanding?: number | null;
+  rent_commission?: number | null;
+  staff_food_expense?: number | null;
+  total_cost?: number | null;
+  total_paid?: number | null;
+  total_payment_received?: number | null;
   totalPayment?: number | null;
   totalPaymentReceived?: number | null;
+  total_sales?: number | null;
   totalSales?: number | null;
+  wastages_variance?: number | null;
 };
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
