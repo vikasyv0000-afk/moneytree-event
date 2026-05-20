@@ -90,11 +90,12 @@ export function calculateOutstanding(event: EventFinancialInput) {
     : 0;
   const commissionWithInvoice = numberFrom(event.commissionRentWithInvoice, event.commission_rent_with_invoice);
   const commissionWithoutInvoice = numberFrom(event.commissionRentWithoutInvoice, event.commission_rent_without_invoice);
+  const paytmCommission = numberFrom(event.paytmCommission, event.paytm_commission);
 
   if (booleanFrom(event.fullPaymentReceived, event.full_payment_received)) return 0;
 
   return Math.max(
-    round2(totalSales - receivedAmount - commissionAmount - commissionWithInvoice - commissionWithoutInvoice - adjustment),
+    round2(totalSales - receivedAmount - commissionAmount - commissionWithInvoice - commissionWithoutInvoice - paytmCommission - adjustment),
     0,
   );
 }
