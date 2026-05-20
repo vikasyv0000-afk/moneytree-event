@@ -106,6 +106,7 @@ interface EventFormData {
   commission_amount: number;
   commission_rent_with_invoice: number;
   commission_rent_without_invoice: number;
+  paytm_commission: number;
   adjustment: number;
   advance_received: string;
   full_payment_received: boolean;
