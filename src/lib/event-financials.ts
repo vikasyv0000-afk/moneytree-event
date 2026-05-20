@@ -17,6 +17,8 @@ type EventFinancialInput = {
   commissionRentWithInvoice?: number | null;
   commission_rent_without_invoice?: number | null;
   commissionRentWithoutInvoice?: number | null;
+  paytm_commission?: number | null;
+  paytmCommission?: number | null;
   ebitda?: number | null;
   event_name?: string | null;
   full_payment_received?: boolean | null;
