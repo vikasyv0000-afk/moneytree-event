@@ -125,6 +125,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EventFormData | null>(null);
+  const [payments, setPayments] = useState<PaymentEntry[]>([]);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", eventId],
