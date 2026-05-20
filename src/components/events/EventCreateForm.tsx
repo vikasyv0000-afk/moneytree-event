@@ -637,6 +637,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
             <NumInput label="Commission/Rent With Invoice" value={form.commission_rent_with_invoice} onChange={(v) => setNum("commission_rent_with_invoice", v)} />
             <NumInput label="Commission/Rent Without Invoice" value={form.commission_rent_without_invoice} onChange={(v) => setNum("commission_rent_without_invoice", v)} />
             <NumInput label="Adjustment" value={form.adjustment} onChange={(v) => setNum("adjustment", v)} />
+            <NumInput label="Paytm Commission" value={form.paytm_commission} onChange={(v) => setNum("paytm_commission", v)} />
           </div>
         </CardContent>
       </Card>
