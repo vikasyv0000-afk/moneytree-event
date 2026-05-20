@@ -185,6 +185,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       commission_amount: e.commission_amount ?? 0,
       commission_rent_with_invoice: e.commission_rent_with_invoice ?? 0,
       commission_rent_without_invoice: e.commission_rent_without_invoice ?? 0,
+      paytm_commission: (e as any).paytm_commission ?? 0,
       adjustment: e.adjustment ?? 0,
       advance_received: e.advance_received || "NA",
       full_payment_received: e.full_payment_received || false,
