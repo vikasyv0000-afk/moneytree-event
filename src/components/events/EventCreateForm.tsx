@@ -169,16 +169,18 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
     setForm((prev) => ({ ...prev, [key]: val }));
   }, []);
 
-  // Auto calculations
+  // Auto calculations (cash_deposit/online_payment derived from payments[])
   const calc = useMemo(() => {
-    const financials = calculateEventFinancials(form);
+    const cashSum = payments.reduce((s, p) => s + (p.cash_deposit || 0), 0);
+    const onlineSum = payments.reduce((s, p) => s + (p.online_payment || 0), 0);
+    const financials = calculateEventFinancials({ ...form, cash_deposit: cashSum, online_payment: onlineSum });
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
     return { ...financials, agingDays, agingLabel };
-  }, [form]);
+  }, [form, payments]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
