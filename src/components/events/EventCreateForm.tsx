@@ -21,6 +21,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
 import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
+import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
