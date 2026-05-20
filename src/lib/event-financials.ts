@@ -13,6 +13,10 @@ type EventFinancialInput = {
   commissionAmount?: number | null;
   commission_paid_from_sale?: boolean | null;
   commissionPaidFromSale?: boolean | null;
+  commission_rent_with_invoice?: number | null;
+  commissionRentWithInvoice?: number | null;
+  commission_rent_without_invoice?: number | null;
+  commissionRentWithoutInvoice?: number | null;
   ebitda?: number | null;
   event_name?: string | null;
   full_payment_received?: boolean | null;
