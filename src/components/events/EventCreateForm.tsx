@@ -320,8 +320,12 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Event Ref Code</Label>
-              <Input value={form.event_ref_code} disabled className="text-sm font-mono font-bold bg-primary/5 text-primary" />
-              <p className="text-xs text-muted-foreground">Auto-generated unique identifier</p>
+              <Input
+                value={saveMutation.isPending ? "Generating…" : (form.event_ref_code || "Will be assigned on save")}
+                disabled
+                className="text-sm font-mono font-bold bg-primary/5 text-primary"
+              />
+              <p className="text-xs text-muted-foreground">Assigned by server on save — guaranteed unique</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Event Name *</Label>
