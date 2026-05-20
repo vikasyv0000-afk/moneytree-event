@@ -244,6 +244,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       commission_paid_from_sale: form.commission_paid_from_sale,
       commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
       commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
+      paytm_commission: form.paytm_commission,
       adjustment: form.adjustment, advance_received: form.advance_received, full_payment_received: form.full_payment_received,
       additional_remarks: form.additional_remarks, event_team_remarks: form.event_team_remarks, remark: form.remark,
       finance_clearance: form.finance_clearance,
