@@ -239,14 +239,16 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   const calc = useMemo(() => {
     if (!form) return { totalSales: 0, totalCost: 0, ebitda: 0, ebitdaPercent: 0, totalPayment: 0, outstanding: 0, paymentStatus: "Pending" as const, agingDays: 0, agingLabel: "Recent" };
-    const financials = calculateEventFinancials(form);
+    const cashSum = payments.reduce((s, p) => s + (p.cash_deposit || 0), 0);
+    const onlineSum = payments.reduce((s, p) => s + (p.online_payment || 0), 0);
+    const financials = calculateEventFinancials({ ...form, cash_deposit: cashSum, online_payment: onlineSum });
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
     return { ...financials, agingDays, agingLabel };
-  }, [form]);
+  }, [form, payments]);
 
   useEffect(() => {
     if (event) logOutstandingMismatch("event-detail", event);
