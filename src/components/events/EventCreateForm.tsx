@@ -135,6 +135,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const { user } = useAuth();
    const qc = useQueryClient();
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+   const [payments, setPayments] = useState<PaymentEntry[]>([emptyPayment()]);
 
    // Fetch SPOCs and Clients for searchable selects
    const { data: spocs = [] } = useQuery({
