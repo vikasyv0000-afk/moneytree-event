@@ -21,6 +21,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
 import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
+import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -134,6 +135,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const { user } = useAuth();
    const qc = useQueryClient();
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
+   const [payments, setPayments] = useState<PaymentEntry[]>([emptyPayment()]);
 
    // Fetch SPOCs and Clients for searchable selects
    const { data: spocs = [] } = useQuery({
@@ -167,16 +169,18 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
     setForm((prev) => ({ ...prev, [key]: val }));
   }, []);
 
-  // Auto calculations
+  // Auto calculations (cash_deposit/online_payment derived from payments[])
   const calc = useMemo(() => {
-    const financials = calculateEventFinancials(form);
+    const cashSum = payments.reduce((s, p) => s + (p.cash_deposit || 0), 0);
+    const onlineSum = payments.reduce((s, p) => s + (p.online_payment || 0), 0);
+    const financials = calculateEventFinancials({ ...form, cash_deposit: cashSum, online_payment: onlineSum });
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
     return { ...financials, agingDays, agingLabel };
-  }, [form]);
+  }, [form, payments]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -217,11 +221,8 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         local_purchase: form.local_purchase,
         rent_commission: form.rent_commission,
         miscellaneous_expense: form.miscellaneous_expense,
-        payment_mode: form.payment_mode,
-        cash_deposit: form.cash_deposit,
-        cash_banking_date: form.cash_banking_date ? format(form.cash_banking_date, "yyyy-MM-dd") : null,
-        online_payment: form.online_payment,
-        event_qr_reference: form.event_qr_reference,
+        // payment_mode/cash_deposit/cash_banking_date/online_payment/event_qr_reference
+        // are synced from the payments table by DB trigger after we insert rows below.
         commission_paid_from_sale: form.commission_paid_from_sale,
         commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
         commission_rent_with_invoice: form.commission_rent_with_invoice,
@@ -237,6 +238,25 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         created_by: user?.id,
       } as any).select("*").single();
       if (error) throw error;
+
+      const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
+      if (valid.length > 0) {
+        const rows = valid.map((p) => ({
+          event_id: data.id,
+          amount: (p.cash_deposit || 0) + (p.online_payment || 0),
+          payment_method: p.payment_mode || "Online",
+          payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+          reference: p.bank_ref || "",
+          cash_deposit: p.cash_deposit || 0,
+          online_payment: p.online_payment || 0,
+          remark: p.remark || "",
+        }));
+        const { error: pErr } = await supabase.from("payments").insert(rows);
+        if (pErr) throw pErr;
+        // Re-fetch event so trigger-updated banking totals reflect in cache
+        const { data: refreshed } = await supabase.from("events").select("*").eq("id", data.id).single();
+        if (refreshed) return refreshed;
+      }
       return data;
     },
     onSuccess: (createdEvent) => {
@@ -561,7 +581,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         </Card>
       </div>
 
-      {/* Section 8: Banking & Collection */}
+      {/* Section 8: Banking & Collection (multi-payment) */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -572,33 +592,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Payment Mode</Label>
-              <Select value={form.payment_mode} onValueChange={(v) => set("payment_mode", v)}>
-                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Online">Online</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
-                  <SelectItem value="Paytm">Paytm</SelectItem>
-                  <SelectItem value="NEFT / Bank Transfer">NEFT / Bank Transfer</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <NumInput label="Cash Deposit" value={form.cash_deposit} onChange={(v) => setNum("cash_deposit", v)} />
-            <DateField label="Cash Banking Date" value={form.cash_banking_date} onChange={(d) => set("cash_banking_date", d)} />
-            <NumInput label="Online Payment" value={form.online_payment} onChange={(v) => setNum("online_payment", v)} />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
-              <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} className="text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Remark</Label>
-              <Input value={form.remark} onChange={(e) => set("remark", e.target.value)} className="text-sm" placeholder="Enter remark" />
-            </div>
-          </div>
+          <PaymentBlocks payments={payments} onChange={setPayments} totalSales={calc.totalSales} />
         </CardContent>
       </Card>
 

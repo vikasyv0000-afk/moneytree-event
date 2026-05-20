@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { calculateEventFinancials, logOutstandingMismatch, logOutstandingSync, normalizeEventFinancials } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
+import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -124,6 +125,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EventFormData | null>(null);
+  const [payments, setPayments] = useState<PaymentEntry[]>([]);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", eventId],
@@ -134,12 +136,43 @@ export default function EventDetail({ eventId, onBack }: Props) {
     },
   });
 
+  const { data: paymentsData } = useQuery({
+    queryKey: ["event-payments", eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("payment_date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   // Populate form from event data
   useEffect(() => {
     if (event && !form) {
       setForm(eventToForm(event));
     }
   }, [event]);
+
+  useEffect(() => {
+    if (paymentsData) {
+      setPayments(
+        paymentsData.length > 0
+          ? paymentsData.map((p: any) => ({
+              id: p.id,
+              payment_mode: p.payment_method || "Online",
+              cash_deposit: Number(p.cash_deposit ?? 0),
+              online_payment: Number(p.online_payment ?? 0),
+              banking_date: p.payment_date ? parseISO(p.payment_date) : undefined,
+              bank_ref: p.reference || "",
+              remark: p.remark || "",
+            }))
+          : []
+      );
+    }
+  }, [paymentsData]);
 
   function eventToForm(e: any): EventFormData {
     return {
@@ -206,14 +239,16 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   const calc = useMemo(() => {
     if (!form) return { totalSales: 0, totalCost: 0, ebitda: 0, ebitdaPercent: 0, totalPayment: 0, outstanding: 0, paymentStatus: "Pending" as const, agingDays: 0, agingLabel: "Recent" };
-    const financials = calculateEventFinancials(form);
+    const cashSum = payments.reduce((s, p) => s + (p.cash_deposit || 0), 0);
+    const onlineSum = payments.reduce((s, p) => s + (p.online_payment || 0), 0);
+    const financials = calculateEventFinancials({ ...form, cash_deposit: cashSum, online_payment: onlineSum });
     const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
     let agingLabel = "Recent";
     if (agingDays > 30) agingLabel = "Overdue";
     else if (agingDays > 7) agingLabel = "Attention";
 
     return { ...financials, agingDays, agingLabel };
-  }, [form]);
+  }, [form, payments]);
 
   useEffect(() => {
     if (event) logOutstandingMismatch("event-detail", event);
@@ -238,9 +273,8 @@ export default function EventDetail({ eventId, onBack }: Props) {
       cogs: form.cogs, other_consumables: form.other_consumables, wastages_variance: form.wastages_variance,
       manpower_cost: form.manpower_cost, logistic_expense: form.logistic_expense, staff_food_expense: form.staff_food_expense,
       local_purchase: form.local_purchase, rent_commission: form.rent_commission, miscellaneous_expense: form.miscellaneous_expense,
-      payment_mode: form.payment_mode, cash_deposit: form.cash_deposit,
-      cash_banking_date: form.cash_banking_date ? format(form.cash_banking_date, "yyyy-MM-dd") : null,
-      online_payment: form.online_payment, event_qr_reference: form.event_qr_reference,
+      // Banking fields (payment_mode, cash_deposit, online_payment, cash_banking_date,
+      // event_qr_reference) are synced from the payments table by a DB trigger.
       commission_paid_from_sale: form.commission_paid_from_sale,
       commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
       commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
@@ -251,18 +285,64 @@ export default function EventDetail({ eventId, onBack }: Props) {
     } as any;
   };
 
+  const syncPayments = async () => {
+    // Replace payment set: delete removed rows, upsert kept/new ones.
+    const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
+    const keptIds = valid.map((p) => p.id).filter(Boolean) as string[];
+
+    // Delete rows that were removed in UI
+    const { data: existing } = await supabase.from("payments").select("id").eq("event_id", eventId);
+    const toDelete = (existing ?? []).map((r: any) => r.id).filter((id) => !keptIds.includes(id));
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from("payments").delete().in("id", toDelete);
+      if (error) throw error;
+    }
+
+    // Upsert kept + new
+    for (const p of valid) {
+      const row = {
+        event_id: eventId,
+        amount: (p.cash_deposit || 0) + (p.online_payment || 0),
+        payment_method: p.payment_mode || "Online",
+        payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        reference: p.bank_ref || "",
+        cash_deposit: p.cash_deposit || 0,
+        online_payment: p.online_payment || 0,
+        remark: p.remark || "",
+      };
+      if (p.id) {
+        const { error } = await supabase.from("payments").update(row).eq("id", p.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payments").insert(row);
+        if (error) throw error;
+      }
+    }
+
+    // If no valid payments and there were existing — they're already deleted above; clear banking fields
+    if (valid.length === 0 && (existing ?? []).length > 0) {
+      await supabase.from("events").update({ cash_deposit: 0, online_payment: 0 }).eq("id", eventId);
+    }
+  };
+
+  const runUpdate = async () => {
+    const payload = buildPayload();
+    const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+    if (error) throw error;
+    await syncPayments();
+    const { data, error: rErr } = await supabase.from("events").select("*").eq("id", eventId).single();
+    if (rErr) throw rErr;
+    return data;
+  };
+
   // Save = draft save (no status change, stays editable)
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = buildPayload();
-      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: runUpdate,
     onSuccess: (updatedEvent) => {
       const syncedEvent = syncEventCaches(qc, updatedEvent);
       logOutstandingSync("event-detail-save", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
+      qc.invalidateQueries({ queryKey: ["event-payments", eventId] });
       toast.success("Changes saved");
       setEditing(false);
       setForm(eventToForm(syncedEvent));
@@ -272,16 +352,12 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   // Submit = final submit (locks if full payment received via DB trigger)
   const submitMutation = useMutation({
-    mutationFn: async () => {
-      const payload = buildPayload();
-      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: runUpdate,
     onSuccess: (updatedEvent) => {
       const syncedEvent = syncEventCaches(qc, updatedEvent);
       logOutstandingSync("event-detail-submit", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
+      qc.invalidateQueries({ queryKey: ["event-payments", eventId] });
       toast.success("Event submitted successfully");
       setEditing(false);
       setForm(eventToForm(syncedEvent));
@@ -589,7 +665,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
         </Card>
       </div>
 
-      {/* Section 8: Banking & Collection */}
+      {/* Section 8: Banking & Collection (multi-payment) */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -600,33 +676,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Payment Mode</Label>
-              <Select value={form.payment_mode} onValueChange={(v) => set("payment_mode", v)} disabled={disabled}>
-                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Online">Online</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
-                  <SelectItem value="Paytm">Paytm</SelectItem>
-                  <SelectItem value="NEFT / Bank Transfer">NEFT / Bank Transfer</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <NumInput label="Cash Deposit" value={form.cash_deposit} onChange={(v) => setNum("cash_deposit", v)} disabled={disabled} />
-            <DateField label="Cash Banking Date" value={form.cash_banking_date} onChange={(d) => set("cash_banking_date", d)} disabled={disabled} />
-            <NumInput label="Online Payment" value={form.online_payment} onChange={(v) => setNum("online_payment", v)} disabled={disabled} />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
-              <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} disabled={disabled} className="text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Remark</Label>
-              <Input value={form.remark} onChange={(e) => set("remark", e.target.value)} disabled={disabled} className="text-sm" placeholder="Enter remark" />
-            </div>
-          </div>
+          <PaymentBlocks payments={payments} onChange={setPayments} disabled={disabled} totalSales={calc.totalSales} />
         </CardContent>
       </Card>
 

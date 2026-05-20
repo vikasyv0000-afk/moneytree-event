@@ -375,30 +375,39 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          cash_deposit: number
           created_at: string
           event_id: string
           id: string
+          online_payment: number
           payment_date: string
           payment_method: string
           reference: string | null
+          remark: string
         }
         Insert: {
           amount?: number
+          cash_deposit?: number
           created_at?: string
           event_id: string
           id?: string
+          online_payment?: number
           payment_date?: string
           payment_method?: string
           reference?: string | null
+          remark?: string
         }
         Update: {
           amount?: number
+          cash_deposit?: number
           created_at?: string
           event_id?: string
           id?: string
+          online_payment?: number
           payment_date?: string
           payment_method?: string
           reference?: string | null
+          remark?: string
         }
         Relationships: [
           {
