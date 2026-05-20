@@ -581,7 +581,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         </Card>
       </div>
 
-      {/* Section 8: Banking & Collection */}
+      {/* Section 8: Banking & Collection (multi-payment) */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -592,33 +592,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Payment Mode</Label>
-              <Select value={form.payment_mode} onValueChange={(v) => set("payment_mode", v)}>
-                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Online">Online</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
-                  <SelectItem value="Paytm">Paytm</SelectItem>
-                  <SelectItem value="NEFT / Bank Transfer">NEFT / Bank Transfer</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <NumInput label="Cash Deposit" value={form.cash_deposit} onChange={(v) => setNum("cash_deposit", v)} />
-            <DateField label="Cash Banking Date" value={form.cash_banking_date} onChange={(d) => set("cash_banking_date", d)} />
-            <NumInput label="Online Payment" value={form.online_payment} onChange={(v) => setNum("online_payment", v)} />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">QR / Bank Ref</Label>
-              <Input value={form.event_qr_reference} onChange={(e) => set("event_qr_reference", e.target.value)} className="text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Remark</Label>
-              <Input value={form.remark} onChange={(e) => set("remark", e.target.value)} className="text-sm" placeholder="Enter remark" />
-            </div>
-          </div>
+          <PaymentBlocks payments={payments} onChange={setPayments} totalSales={calc.totalSales} />
         </CardContent>
       </Card>
 
