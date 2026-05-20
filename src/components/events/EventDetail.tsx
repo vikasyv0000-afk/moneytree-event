@@ -326,10 +326,17 @@ export default function EventDetail({ eventId, onBack }: Props) {
   };
 
   const runUpdate = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      throw new Error("Your session has expired. Please sign in again to update this event.");
+    }
+
     const payload = buildPayload();
+    await syncPayments();
+
     const { error } = await supabase.from("events").update(payload).eq("id", eventId);
     if (error) throw error;
-    await syncPayments();
+
     const { data, error: rErr } = await supabase.from("events").select("*").eq("id", eventId).single();
     if (rErr) throw rErr;
     return data;
