@@ -136,12 +136,43 @@ export default function EventDetail({ eventId, onBack }: Props) {
     },
   });
 
+  const { data: paymentsData } = useQuery({
+    queryKey: ["event-payments", eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("payment_date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   // Populate form from event data
   useEffect(() => {
     if (event && !form) {
       setForm(eventToForm(event));
     }
   }, [event]);
+
+  useEffect(() => {
+    if (paymentsData) {
+      setPayments(
+        paymentsData.length > 0
+          ? paymentsData.map((p: any) => ({
+              id: p.id,
+              payment_mode: p.payment_method || "Online",
+              cash_deposit: Number(p.cash_deposit ?? 0),
+              online_payment: Number(p.online_payment ?? 0),
+              banking_date: p.payment_date ? parseISO(p.payment_date) : undefined,
+              bank_ref: p.reference || "",
+              remark: p.remark || "",
+            }))
+          : []
+      );
+    }
+  }, [paymentsData]);
 
   function eventToForm(e: any): EventFormData {
     return {
