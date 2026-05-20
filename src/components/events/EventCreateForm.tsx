@@ -243,7 +243,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
       const syncedEvent = syncEventCaches(qc, createdEvent);
       logOutstandingSync("event-create", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
-      toast.success("Event created successfully");
+      toast.success(`Event created — Ref Code: ${syncedEvent.event_ref_code ?? "—"}`);
       onBack();
     },
     onError: (e: Error) => toast.error(e.message),
