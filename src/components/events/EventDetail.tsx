@@ -273,9 +273,8 @@ export default function EventDetail({ eventId, onBack }: Props) {
       cogs: form.cogs, other_consumables: form.other_consumables, wastages_variance: form.wastages_variance,
       manpower_cost: form.manpower_cost, logistic_expense: form.logistic_expense, staff_food_expense: form.staff_food_expense,
       local_purchase: form.local_purchase, rent_commission: form.rent_commission, miscellaneous_expense: form.miscellaneous_expense,
-      payment_mode: form.payment_mode, cash_deposit: form.cash_deposit,
-      cash_banking_date: form.cash_banking_date ? format(form.cash_banking_date, "yyyy-MM-dd") : null,
-      online_payment: form.online_payment, event_qr_reference: form.event_qr_reference,
+      // Banking fields (payment_mode, cash_deposit, online_payment, cash_banking_date,
+      // event_qr_reference) are synced from the payments table by a DB trigger.
       commission_paid_from_sale: form.commission_paid_from_sale,
       commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
       commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
