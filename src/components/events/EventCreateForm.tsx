@@ -221,11 +221,8 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         local_purchase: form.local_purchase,
         rent_commission: form.rent_commission,
         miscellaneous_expense: form.miscellaneous_expense,
-        payment_mode: form.payment_mode,
-        cash_deposit: form.cash_deposit,
-        cash_banking_date: form.cash_banking_date ? format(form.cash_banking_date, "yyyy-MM-dd") : null,
-        online_payment: form.online_payment,
-        event_qr_reference: form.event_qr_reference,
+        // payment_mode/cash_deposit/cash_banking_date/online_payment/event_qr_reference
+        // are synced from the payments table by DB trigger after we insert rows below.
         commission_paid_from_sale: form.commission_paid_from_sale,
         commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
         commission_rent_with_invoice: form.commission_rent_with_invoice,
@@ -241,6 +238,25 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         created_by: user?.id,
       } as any).select("*").single();
       if (error) throw error;
+
+      const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
+      if (valid.length > 0) {
+        const rows = valid.map((p) => ({
+          event_id: data.id,
+          amount: (p.cash_deposit || 0) + (p.online_payment || 0),
+          payment_method: p.payment_mode || "Online",
+          payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+          reference: p.bank_ref || "",
+          cash_deposit: p.cash_deposit || 0,
+          online_payment: p.online_payment || 0,
+          remark: p.remark || "",
+        }));
+        const { error: pErr } = await supabase.from("payments").insert(rows);
+        if (pErr) throw pErr;
+        // Re-fetch event so trigger-updated banking totals reflect in cache
+        const { data: refreshed } = await supabase.from("events").select("*").eq("id", data.id).single();
+        if (refreshed) return refreshed;
+      }
       return data;
     },
     onSuccess: (createdEvent) => {
