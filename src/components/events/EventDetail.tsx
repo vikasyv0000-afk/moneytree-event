@@ -285,18 +285,64 @@ export default function EventDetail({ eventId, onBack }: Props) {
     } as any;
   };
 
+  const syncPayments = async () => {
+    // Replace payment set: delete removed rows, upsert kept/new ones.
+    const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
+    const keptIds = valid.map((p) => p.id).filter(Boolean) as string[];
+
+    // Delete rows that were removed in UI
+    const { data: existing } = await supabase.from("payments").select("id").eq("event_id", eventId);
+    const toDelete = (existing ?? []).map((r: any) => r.id).filter((id) => !keptIds.includes(id));
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from("payments").delete().in("id", toDelete);
+      if (error) throw error;
+    }
+
+    // Upsert kept + new
+    for (const p of valid) {
+      const row = {
+        event_id: eventId,
+        amount: (p.cash_deposit || 0) + (p.online_payment || 0),
+        payment_method: p.payment_mode || "Online",
+        payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        reference: p.bank_ref || "",
+        cash_deposit: p.cash_deposit || 0,
+        online_payment: p.online_payment || 0,
+        remark: p.remark || "",
+      };
+      if (p.id) {
+        const { error } = await supabase.from("payments").update(row).eq("id", p.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payments").insert(row);
+        if (error) throw error;
+      }
+    }
+
+    // If no valid payments and there were existing — they're already deleted above; clear banking fields
+    if (valid.length === 0 && (existing ?? []).length > 0) {
+      await supabase.from("events").update({ cash_deposit: 0, online_payment: 0 }).eq("id", eventId);
+    }
+  };
+
+  const runUpdate = async () => {
+    const payload = buildPayload();
+    const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+    if (error) throw error;
+    await syncPayments();
+    const { data, error: rErr } = await supabase.from("events").select("*").eq("id", eventId).single();
+    if (rErr) throw rErr;
+    return data;
+  };
+
   // Save = draft save (no status change, stays editable)
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = buildPayload();
-      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: runUpdate,
     onSuccess: (updatedEvent) => {
       const syncedEvent = syncEventCaches(qc, updatedEvent);
       logOutstandingSync("event-detail-save", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
+      qc.invalidateQueries({ queryKey: ["event-payments", eventId] });
       toast.success("Changes saved");
       setEditing(false);
       setForm(eventToForm(syncedEvent));
@@ -306,16 +352,12 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   // Submit = final submit (locks if full payment received via DB trigger)
   const submitMutation = useMutation({
-    mutationFn: async () => {
-      const payload = buildPayload();
-      const { data, error } = await supabase.from("events").update(payload).eq("id", eventId).select("*").single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: runUpdate,
     onSuccess: (updatedEvent) => {
       const syncedEvent = syncEventCaches(qc, updatedEvent);
       logOutstandingSync("event-detail-submit", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
+      qc.invalidateQueries({ queryKey: ["event-payments", eventId] });
       toast.success("Event submitted successfully");
       setEditing(false);
       setForm(eventToForm(syncedEvent));
