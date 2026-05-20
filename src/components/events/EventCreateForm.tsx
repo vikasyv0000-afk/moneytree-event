@@ -106,6 +106,7 @@ interface EventFormData {
   commission_amount: number;
   commission_rent_with_invoice: number;
   commission_rent_without_invoice: number;
+  paytm_commission: number;
   adjustment: number;
   advance_received: string;
   full_payment_received: boolean;
@@ -122,7 +123,7 @@ const defaultForm: EventFormData = {
   total_waffwich_sold: 0, total_premix_sold: 0, total_crisps_sold: 0, net_sales: 0, gst_amount: 0,
   cogs: 0, other_consumables: 0, wastages_variance: 0, manpower_cost: 0, logistic_expense: 0, staff_food_expense: 0, local_purchase: 0, rent_commission: 0, miscellaneous_expense: 0,
   payment_mode: "Online", cash_deposit: 0, cash_banking_date: undefined, online_payment: 0, event_qr_reference: "",
-  commission_paid_from_sale: false, commission_amount: 0, commission_rent_with_invoice: 0, commission_rent_without_invoice: 0, adjustment: 0,
+  commission_paid_from_sale: false, commission_amount: 0, commission_rent_with_invoice: 0, commission_rent_without_invoice: 0, paytm_commission: 0, adjustment: 0,
   advance_received: "NA", full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
 };
 
@@ -247,6 +248,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
         commission_rent_with_invoice: form.commission_rent_with_invoice,
         commission_rent_without_invoice: form.commission_rent_without_invoice,
+        paytm_commission: form.paytm_commission,
         adjustment: form.adjustment,
         advance_received: form.advance_received,
         full_payment_received: form.full_payment_received,
@@ -635,6 +637,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
             <NumInput label="Commission/Rent With Invoice" value={form.commission_rent_with_invoice} onChange={(v) => setNum("commission_rent_with_invoice", v)} />
             <NumInput label="Commission/Rent Without Invoice" value={form.commission_rent_without_invoice} onChange={(v) => setNum("commission_rent_without_invoice", v)} />
             <NumInput label="Adjustment" value={form.adjustment} onChange={(v) => setNum("adjustment", v)} />
+            <NumInput label="Paytm Commission" value={form.paytm_commission} onChange={(v) => setNum("paytm_commission", v)} />
           </div>
         </CardContent>
       </Card>

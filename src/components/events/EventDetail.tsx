@@ -101,6 +101,7 @@ interface EventFormData {
   commission_amount: number;
   commission_rent_with_invoice: number;
   commission_rent_without_invoice: number;
+  paytm_commission: number;
   adjustment: number;
   advance_received: string;
   full_payment_received: boolean;
@@ -184,6 +185,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       commission_amount: e.commission_amount ?? 0,
       commission_rent_with_invoice: e.commission_rent_with_invoice ?? 0,
       commission_rent_without_invoice: e.commission_rent_without_invoice ?? 0,
+      paytm_commission: (e as any).paytm_commission ?? 0,
       adjustment: e.adjustment ?? 0,
       advance_received: e.advance_received || "NA",
       full_payment_received: e.full_payment_received || false,
@@ -242,6 +244,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       commission_paid_from_sale: form.commission_paid_from_sale,
       commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
       commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
+      paytm_commission: form.paytm_commission,
       adjustment: form.adjustment, advance_received: form.advance_received, full_payment_received: form.full_payment_received,
       additional_remarks: form.additional_remarks, event_team_remarks: form.event_team_remarks, remark: form.remark,
       finance_clearance: form.finance_clearance,
@@ -644,6 +647,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
             <NumInput label="Commission/Rent With Invoice" value={form.commission_rent_with_invoice} onChange={(v) => setNum("commission_rent_with_invoice", v)} disabled={disabled} />
             <NumInput label="Commission/Rent Without Invoice" value={form.commission_rent_without_invoice} onChange={(v) => setNum("commission_rent_without_invoice", v)} disabled={disabled} />
             <NumInput label="Adjustment" value={form.adjustment} onChange={(v) => setNum("adjustment", v)} disabled={disabled} />
+            <NumInput label="Paytm Commission" value={form.paytm_commission} onChange={(v) => setNum("paytm_commission", v)} disabled={disabled} />
           </div>
         </CardContent>
       </Card>

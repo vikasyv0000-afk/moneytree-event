@@ -131,6 +131,7 @@ export type Database = {
           outstanding: number | null
           payment_mode: string | null
           payment_status: string | null
+          paytm_commission: number
           posist_code: string | null
           profit: number | null
           referral_details: string | null
@@ -202,6 +203,7 @@ export type Database = {
           outstanding?: number | null
           payment_mode?: string | null
           payment_status?: string | null
+          paytm_commission?: number
           posist_code?: string | null
           profit?: number | null
           referral_details?: string | null
@@ -273,6 +275,7 @@ export type Database = {
           outstanding?: number | null
           payment_mode?: string | null
           payment_status?: string | null
+          paytm_commission?: number
           posist_code?: string | null
           profit?: number | null
           referral_details?: string | null
