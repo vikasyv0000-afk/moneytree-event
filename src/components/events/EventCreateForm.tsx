@@ -127,7 +127,7 @@ const defaultForm: EventFormData = {
 };
 
 const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
-const ZONES = ["North", "South", "East", "West", "Central"];
+const ZONES = ["North", "South", "East", "West"];
 
 export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const { user } = useAuth();
