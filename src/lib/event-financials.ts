@@ -86,10 +86,15 @@ export function calculateOutstanding(event: EventFinancialInput) {
   const commissionAmount = booleanFrom(event.commissionPaidFromSale, event.commission_paid_from_sale)
     ? numberFrom(event.commissionAmount, event.commission_amount)
     : 0;
+  const commissionWithInvoice = numberFrom(event.commissionRentWithInvoice, event.commission_rent_with_invoice);
+  const commissionWithoutInvoice = numberFrom(event.commissionRentWithoutInvoice, event.commission_rent_without_invoice);
 
   if (booleanFrom(event.fullPaymentReceived, event.full_payment_received)) return 0;
 
-  return Math.max(round2(totalSales - receivedAmount - commissionAmount - adjustment), 0);
+  return Math.max(
+    round2(totalSales - receivedAmount - commissionAmount - commissionWithInvoice - commissionWithoutInvoice - adjustment),
+    0,
+  );
 }
 
 export function calculateEventFinancials(event: EventFinancialInput) {
