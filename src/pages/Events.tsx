@@ -137,33 +137,146 @@ export default function Events() {
     });
   }, [events, activeTab, categoryFilter, paymentStatusFilter, dateFrom, dateTo, search]);
 
-  const exportToExcel = () => {
+  const humanizeKey = (key: string) =>
+    key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .replace(/\bGst\b/g, "GST")
+      .replace(/\bEbitda\b/g, "EBITDA")
+      .replace(/\bErp\b/g, "ERP")
+      .replace(/\bQr\b/g, "QR")
+      .replace(/\bSpoc\b/g, "SPOC")
+      .replace(/\bId\b/g, "ID")
+      .replace(/\bRef\b/g, "Ref");
+
+  const formatCell = (value: unknown): string | number | boolean => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return value as string | number;
+  };
+
+  const autoFitColumns = (rows: Array<Record<string, unknown>>) => {
+    if (rows.length === 0) return [];
+    const keys = Object.keys(rows[0]);
+    return keys.map((key) => {
+      const maxLen = Math.max(
+        key.length,
+        ...rows.map((r) => {
+          const v = r[key];
+          return v === null || v === undefined ? 0 : String(v).length;
+        }),
+      );
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+    });
+  };
+
+  const exportToExcel = async () => {
     if (filteredEvents.length === 0) {
       toast.error("No events to export");
       return;
     }
-    const rows = filteredEvents.map((e) => ({
-      "Event Ref Code": e.event_ref_code ?? "",
-      "Event Name": e.event_name,
-      "Event Date": e.event_date,
-      "Client Name": e.client_name,
-      "Venue": e.venue,
-      "Category": e.category ?? "",
-      "Net Sales": e.net_sales ?? 0,
-      "Total Sales": e.total_sales ?? 0,
-      "Total Cost": e.total_cost ?? 0,
-      "EBITDA": e.ebitda ?? 0,
-      "Total Payment Received": e.total_payment_received ?? 0,
-      "Outstanding": e.outstanding ?? 0,
-      "Payment Status": e.payment_status ?? "",
-      "Status": e.status,
-      "Created By": creatorMap.get(e.created_by ?? "") ?? "",
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Events");
-    XLSX.writeFile(wb, `Events_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    toast.success("Excel file downloaded!");
+
+    try {
+      const eventIds = filteredEvents.map((e) => e.id);
+
+      // Fetch the full raw events (all DB columns) for selected rows, plus payments + financial years
+      const [eventsRes, paymentsRes, fyRes] = await Promise.all([
+        supabase.from("events").select("*").in("id", eventIds),
+        supabase
+          .from("payments")
+          .select("*")
+          .in("event_id", eventIds)
+          .order("payment_date", { ascending: true }),
+        supabase.from("financial_years").select("id, label"),
+      ]);
+
+      if (eventsRes.error) throw eventsRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
+      if (fyRes.error) throw fyRes.error;
+
+      const fyMap = new Map<string, string>();
+      (fyRes.data ?? []).forEach((fy: any) => fyMap.set(fy.id, fy.label));
+
+      const paymentsByEvent = new Map<string, any[]>();
+      (paymentsRes.data ?? []).forEach((p: any) => {
+        const arr = paymentsByEvent.get(p.event_id) ?? [];
+        arr.push(p);
+        paymentsByEvent.set(p.event_id, arr);
+      });
+
+      const rawEvents = eventsRes.data ?? [];
+
+      // Build Events sheet — every DB column, dynamically mapped
+      const eventRows = rawEvents.map((e: any) => {
+        const row: Record<string, unknown> = {};
+        Object.keys(e)
+          .sort()
+          .forEach((key) => {
+            row[humanizeKey(key)] = formatCell(e[key]);
+          });
+        // Enriched/derived fields
+        row["Financial Year"] = e.financial_year_id ? fyMap.get(e.financial_year_id) ?? "" : "";
+        row["Created By (Name)"] = creatorMap.get(e.created_by ?? "") ?? "";
+        row["Modified By (Name)"] = creatorMap.get(e.modified_by ?? "") ?? "";
+        row["Payments Count"] = (paymentsByEvent.get(e.id) ?? []).length;
+        return row;
+      });
+
+      // Build Payments sheet — one row per payment, with event ref/name context
+      const paymentRows: Array<Record<string, unknown>> = [];
+      rawEvents.forEach((e: any) => {
+        const pays = paymentsByEvent.get(e.id) ?? [];
+        pays.forEach((p: any, idx: number) => {
+          paymentRows.push({
+            "Event Ref Code": e.event_ref_code ?? "",
+            "Event Name": e.event_name ?? "",
+            "Event Date": e.event_date ?? "",
+            "Client Name": e.client_name ?? "",
+            "Payment #": idx + 1,
+            "Payment ID": p.id,
+            "Payment Method": p.payment_method ?? "",
+            "Payment Date": p.payment_date ?? "",
+            "Cash Deposit": Number(p.cash_deposit ?? 0),
+            "Online Payment": Number(p.online_payment ?? 0),
+            "Amount": Number(p.amount ?? 0),
+            "Bank/QR Reference": p.reference ?? "",
+            "Remark": p.remark ?? "",
+            "Created At": p.created_at ?? "",
+          });
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const wsEvents = XLSX.utils.json_to_sheet(eventRows);
+      wsEvents["!cols"] = autoFitColumns(eventRows);
+      wsEvents["!freeze"] = { xSplit: 0, ySplit: 1 };
+      (wsEvents as any)["!freeze"] = { xSplit: 0, ySplit: 1 };
+      wsEvents["!autofilter"] = { ref: wsEvents["!ref"] ?? "A1" };
+      XLSX.utils.book_append_sheet(wb, wsEvents, "Events");
+
+      if (paymentRows.length > 0) {
+        const wsPay = XLSX.utils.json_to_sheet(paymentRows);
+        wsPay["!cols"] = autoFitColumns(paymentRows);
+        wsPay["!autofilter"] = { ref: wsPay["!ref"] ?? "A1" };
+        XLSX.utils.book_append_sheet(wb, wsPay, "Payments");
+      }
+
+      XLSX.writeFile(wb, `Events_Full_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(
+        `Exported ${eventRows.length} event(s) and ${paymentRows.length} payment(s)`,
+      );
+    } catch (err: any) {
+      console.error("Export failed", err);
+      toast.error(err.message || "Export failed");
+    }
   };
 
   if (showCreate) {
