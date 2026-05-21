@@ -213,7 +213,12 @@ export default function Events() {
 
       const rawEvents = eventsRes.data ?? [];
 
-      // Build Events sheet — every DB column, dynamically mapped
+      const maxPayments = rawEvents.reduce(
+        (max: number, e: any) => Math.max(max, (paymentsByEvent.get(e.id) ?? []).length),
+        0,
+      );
+
+      // Build Events sheet — every DB column, dynamically mapped + flattened payments
       const eventRows = rawEvents.map((e: any) => {
         const row: Record<string, unknown> = {};
         Object.keys(e)
@@ -221,11 +226,24 @@ export default function Events() {
           .forEach((key) => {
             row[humanizeKey(key)] = formatCell(e[key]);
           });
-        // Enriched/derived fields
         row["Financial Year"] = e.financial_year_id ? fyMap.get(e.financial_year_id) ?? "" : "";
         row["Created By (Name)"] = creatorMap.get(e.created_by ?? "") ?? "";
         row["Modified By (Name)"] = creatorMap.get(e.modified_by ?? "") ?? "";
-        row["Payments Count"] = (paymentsByEvent.get(e.id) ?? []).length;
+
+        const pays = paymentsByEvent.get(e.id) ?? [];
+        row["Payments Count"] = pays.length;
+
+        for (let i = 0; i < maxPayments; i++) {
+          const p = pays[i];
+          const prefix = `Payment ${i + 1}`;
+          row[`${prefix} Mode`] = p?.payment_method ?? "";
+          row[`${prefix} Cash Deposit`] = p ? Number(p.cash_deposit ?? 0) : "";
+          row[`${prefix} Online Payment`] = p ? Number(p.online_payment ?? 0) : "";
+          row[`${prefix} Amount`] = p ? Number(p.amount ?? 0) : "";
+          row[`${prefix} Date`] = p?.payment_date ?? "";
+          row[`${prefix} Bank/QR Ref`] = p?.reference ?? "";
+          row[`${prefix} Remark`] = p?.remark ?? "";
+        }
         return row;
       });
 
