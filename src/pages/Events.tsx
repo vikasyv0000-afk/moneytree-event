@@ -137,18 +137,6 @@ export default function Events() {
     });
   }, [events, activeTab, categoryFilter, paymentStatusFilter, dateFrom, dateTo, search]);
 
-  const humanizeKey = (key: string) =>
-    key
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .replace(/\bGst\b/g, "GST")
-      .replace(/\bEbitda\b/g, "EBITDA")
-      .replace(/\bErp\b/g, "ERP")
-      .replace(/\bQr\b/g, "QR")
-      .replace(/\bSpoc\b/g, "SPOC")
-      .replace(/\bId\b/g, "ID")
-      .replace(/\bRef\b/g, "Ref");
-
   const formatCell = (value: unknown): string | number | boolean => {
     if (value === null || value === undefined) return "";
     if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -162,9 +150,9 @@ export default function Events() {
     return value as string | number;
   };
 
-  const autoFitColumns = (rows: Array<Record<string, unknown>>) => {
-    if (rows.length === 0) return [];
-    const keys = Object.keys(rows[0]);
+  const autoFitColumns = (rows: Array<Record<string, unknown>>, headers?: string[]) => {
+    if (rows.length === 0 && (!headers || headers.length === 0)) return [];
+    const keys = headers ?? Object.keys(rows[0] ?? {});
     return keys.map((key) => {
       const maxLen = Math.max(
         key.length,
@@ -173,9 +161,70 @@ export default function Events() {
           return v === null || v === undefined ? 0 : String(v).length;
         }),
       );
-      return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+      return { wch: Math.min(Math.max(maxLen + 2, 12), 40) };
     });
   };
+
+  // Apply bold header + freeze + autofilter + number/date formats
+  const styleSheet = (
+    ws: XLSX.WorkSheet,
+    headers: string[],
+    currencyCols: string[] = [],
+    dateCols: string[] = [],
+    percentCols: string[] = [],
+  ) => {
+    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    // Header styling
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+      const cell = ws[addr];
+      if (!cell) continue;
+      cell.s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1F4E78" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        },
+      };
+    }
+    // Data cell formats
+    const currencyIdx = new Set(currencyCols.map((h) => headers.indexOf(h)).filter((i) => i >= 0));
+    const dateIdx = new Set(dateCols.map((h) => headers.indexOf(h)).filter((i) => i >= 0));
+    const percentIdx = new Set(percentCols.map((h) => headers.indexOf(h)).filter((i) => i >= 0));
+    for (let R = 1; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[addr];
+        if (!cell) continue;
+        if (currencyIdx.has(C) && typeof cell.v === "number") {
+          cell.z = '₹#,##0.00;[Red]-₹#,##0.00;"-"';
+        } else if (percentIdx.has(C) && typeof cell.v === "number") {
+          cell.z = "0.00%";
+          cell.v = cell.v / 100;
+        } else if (dateIdx.has(C) && cell.v) {
+          cell.z = "dd-mmm-yyyy";
+        }
+        cell.s = {
+          ...(cell.s || {}),
+          alignment: { vertical: "center", wrapText: false },
+          border: {
+            top: { style: "hair", color: { rgb: "CCCCCC" } },
+            bottom: { style: "hair", color: { rgb: "CCCCCC" } },
+            left: { style: "hair", color: { rgb: "CCCCCC" } },
+            right: { style: "hair", color: { rgb: "CCCCCC" } },
+          },
+        };
+      }
+    }
+    (ws as any)["!freeze"] = { xSplit: 0, ySplit: 1 };
+    ws["!autofilter"] = { ref: ws["!ref"] ?? "A1" };
+  };
+
+  const num = (v: any) => (v === null || v === undefined || v === "" ? 0 : Number(v) || 0);
 
   const exportToExcel = async () => {
     if (filteredEvents.length === 0) {
@@ -186,7 +235,6 @@ export default function Events() {
     try {
       const eventIds = filteredEvents.map((e) => e.id);
 
-      // Fetch the full raw events (all DB columns) for selected rows, plus payments + financial years
       const [eventsRes, paymentsRes, fyRes] = await Promise.all([
         supabase.from("events").select("*").in("id", eventIds),
         supabase
@@ -211,91 +259,248 @@ export default function Events() {
         paymentsByEvent.set(p.event_id, arr);
       });
 
-      const rawEvents = eventsRes.data ?? [];
+      const rawEvents = (eventsRes.data ?? []).sort((a: any, b: any) =>
+        (a.event_ref_code ?? "").localeCompare(b.event_ref_code ?? ""),
+      );
 
       const maxPayments = rawEvents.reduce(
         (max: number, e: any) => Math.max(max, (paymentsByEvent.get(e.id) ?? []).length),
         0,
       );
 
-      // Build Events sheet — every DB column, dynamically mapped + flattened payments
-      const eventRows = rawEvents.map((e: any) => {
-        const row: Record<string, unknown> = {};
-        Object.keys(e)
-          .sort()
-          .forEach((key) => {
-            row[humanizeKey(key)] = formatCell(e[key]);
-          });
-        row["Financial Year"] = e.financial_year_id ? fyMap.get(e.financial_year_id) ?? "" : "";
-        row["Created By (Name)"] = creatorMap.get(e.created_by ?? "") ?? "";
-        row["Modified By (Name)"] = creatorMap.get(e.modified_by ?? "") ?? "";
+      // Fixed MIS column order (matches sample report)
+      const baseHeaders = [
+        "Event Ref. Code",
+        "Event Name",
+        "Event Date",
+        "Month",
+        "Financial Year",
+        "Invoice Date",
+        "Invoice Code",
+        "ERP Invoice No.",
+        "Posist Code",
+        "Client Name",
+        "Client Sub Name",
+        "Referral Details",
+        "Registration Status",
+        "GST Exempted",
+        "Venue",
+        "Area",
+        "City",
+        "State",
+        "Zone",
+        "SPOC",
+        "Category",
+        "Total Waffwich Sold",
+        "Total Premix Sold",
+        "Total Crisps Sold",
+        "Net Sales",
+        "GST",
+        "Total Sales",
+        "COGS",
+        "Other Consumables",
+        "Wastages / Variance",
+        "Manpower Cost",
+        "Logistic Expense",
+        "Staff Food Expense",
+        "Local Purchase",
+        "Rent / Commission",
+        "Miscellaneous",
+        "Total Cost",
+        "EBITDA",
+        "EBITDA %",
+        "Profit",
+        "Commission Paid From Sale",
+        "Commission Amount",
+        "Commission Rent With Invoice",
+        "Commission Rent Without Invoice",
+        "Paytm Commission",
+        "Adjustment",
+        "Advance Received",
+        "Payment Mode",
+        "Cash Deposit",
+        "Cash Banking Date",
+        "Online Payment",
+        "UTR / QR Reference",
+        "Total Payment Received",
+        "Outstanding",
+        "Payment Status",
+        "Full Payment Received",
+        "Finance Clearance",
+        "Status",
+        "Locked",
+        "Event Team Remarks",
+        "Additional Remarks",
+        "Remark",
+        "Created By",
+        "Modified By",
+        "Created At",
+        "Updated At",
+      ];
 
+      const paymentHeaders: string[] = [];
+      for (let i = 1; i <= maxPayments; i++) {
+        paymentHeaders.push(
+          `Payment ${i} Mode`,
+          `Payment ${i} Amount`,
+          `Payment ${i} Date`,
+          `Payment ${i} UTR / Ref`,
+          `Payment ${i} Remark`,
+        );
+      }
+      const summaryHeaders = [...baseHeaders, "Payments Count", ...paymentHeaders];
+
+      const currencyCols = [
+        "Net Sales", "GST", "Total Sales",
+        "COGS", "Other Consumables", "Wastages / Variance",
+        "Manpower Cost", "Logistic Expense", "Staff Food Expense",
+        "Local Purchase", "Rent / Commission", "Miscellaneous",
+        "Total Cost", "EBITDA", "Profit",
+        "Commission Amount", "Commission Rent With Invoice", "Commission Rent Without Invoice",
+        "Paytm Commission", "Adjustment",
+        "Cash Deposit", "Online Payment", "Total Payment Received", "Outstanding",
+      ];
+      const dateCols = ["Event Date", "Invoice Date", "Cash Banking Date", "Created At", "Updated At"];
+      const percentCols = ["EBITDA %"];
+      for (let i = 1; i <= maxPayments; i++) {
+        currencyCols.push(`Payment ${i} Amount`);
+        dateCols.push(`Payment ${i} Date`);
+      }
+
+      const summaryRows = rawEvents.map((e: any) => {
         const pays = paymentsByEvent.get(e.id) ?? [];
-        row["Payments Count"] = pays.length;
-
+        const row: Record<string, any> = {
+          "Event Ref. Code": e.event_ref_code ?? "",
+          "Event Name": e.event_name ?? "",
+          "Event Date": e.event_date ? new Date(e.event_date) : "",
+          "Month": e.month?.trim() ?? "",
+          "Financial Year": e.financial_year_id ? fyMap.get(e.financial_year_id) ?? "" : "",
+          "Invoice Date": e.invoice_date ? new Date(e.invoice_date) : "",
+          "Invoice Code": e.invoice_code ?? "",
+          "ERP Invoice No.": e.erp_invoice_no ?? "",
+          "Posist Code": e.posist_code ?? "",
+          "Client Name": e.client_name ?? "",
+          "Client Sub Name": e.client_sub_name ?? "",
+          "Referral Details": e.referral_details ?? "",
+          "Registration Status": e.registration_status ?? "",
+          "GST Exempted": formatCell(e.gst_exempted),
+          "Venue": e.venue ?? "",
+          "Area": e.area ?? "",
+          "City": e.city ?? "",
+          "State": e.state ?? "",
+          "Zone": e.zone ?? "",
+          "SPOC": e.spoc ?? "",
+          "Category": e.category ?? "",
+          "Total Waffwich Sold": num(e.total_waffwich_sold),
+          "Total Premix Sold": num(e.total_premix_sold),
+          "Total Crisps Sold": num(e.total_crisps_sold),
+          "Net Sales": num(e.net_sales),
+          "GST": num(e.gst_amount),
+          "Total Sales": num(e.total_sales),
+          "COGS": num(e.cogs),
+          "Other Consumables": num(e.other_consumables),
+          "Wastages / Variance": num(e.wastages_variance),
+          "Manpower Cost": num(e.manpower_cost),
+          "Logistic Expense": num(e.logistic_expense),
+          "Staff Food Expense": num(e.staff_food_expense),
+          "Local Purchase": num(e.local_purchase),
+          "Rent / Commission": num(e.rent_commission),
+          "Miscellaneous": num(e.miscellaneous_expense),
+          "Total Cost": num(e.total_cost),
+          "EBITDA": num(e.ebitda),
+          "EBITDA %": num(e.ebitda_percent),
+          "Profit": num(e.profit),
+          "Commission Paid From Sale": formatCell(e.commission_paid_from_sale),
+          "Commission Amount": num(e.commission_amount),
+          "Commission Rent With Invoice": num(e.commission_rent_with_invoice),
+          "Commission Rent Without Invoice": num(e.commission_rent_without_invoice),
+          "Paytm Commission": num(e.paytm_commission),
+          "Adjustment": num(e.adjustment),
+          "Advance Received": e.advance_received ?? "",
+          "Payment Mode": e.payment_mode ?? "",
+          "Cash Deposit": num(e.cash_deposit),
+          "Cash Banking Date": e.cash_banking_date ? new Date(e.cash_banking_date) : "",
+          "Online Payment": num(e.online_payment),
+          "UTR / QR Reference": e.event_qr_reference ?? "",
+          "Total Payment Received": num(e.total_payment_received),
+          "Outstanding": num(e.outstanding),
+          "Payment Status": e.payment_status ?? "",
+          "Full Payment Received": formatCell(e.full_payment_received),
+          "Finance Clearance": e.finance_clearance ?? "",
+          "Status": e.status ?? "",
+          "Locked": formatCell(e.is_locked),
+          "Event Team Remarks": e.event_team_remarks ?? "",
+          "Additional Remarks": e.additional_remarks ?? "",
+          "Remark": e.remark ?? "",
+          "Created By": creatorMap.get(e.created_by ?? "") ?? "",
+          "Modified By": creatorMap.get(e.modified_by ?? "") ?? "",
+          "Created At": e.created_at ? new Date(e.created_at) : "",
+          "Updated At": e.updated_at ? new Date(e.updated_at) : "",
+          "Payments Count": pays.length,
+        };
         for (let i = 0; i < maxPayments; i++) {
           const p = pays[i];
-          const prefix = `Payment ${i + 1}`;
-          row[`${prefix} Mode`] = p?.payment_method ?? "";
-          row[`${prefix} Cash Deposit`] = p ? Number(p.cash_deposit ?? 0) : "";
-          row[`${prefix} Online Payment`] = p ? Number(p.online_payment ?? 0) : "";
-          row[`${prefix} Amount`] = p ? Number(p.amount ?? 0) : "";
-          row[`${prefix} Date`] = p?.payment_date ?? "";
-          row[`${prefix} Bank/QR Ref`] = p?.reference ?? "";
-          row[`${prefix} Remark`] = p?.remark ?? "";
+          row[`Payment ${i + 1} Mode`] = p?.payment_method ?? "";
+          row[`Payment ${i + 1} Amount`] = p ? num(p.amount) : "";
+          row[`Payment ${i + 1} Date`] = p?.payment_date ? new Date(p.payment_date) : "";
+          row[`Payment ${i + 1} UTR / Ref`] = p?.reference ?? "";
+          row[`Payment ${i + 1} Remark`] = p?.remark ?? "";
         }
         return row;
       });
 
-      // Build Payments sheet — one row per payment, with event ref/name context
-      const paymentRows: Array<Record<string, unknown>> = [];
+      const paymentRows: Array<Record<string, any>> = [];
       rawEvents.forEach((e: any) => {
         const pays = paymentsByEvent.get(e.id) ?? [];
         pays.forEach((p: any, idx: number) => {
           paymentRows.push({
-            "Event Ref Code": e.event_ref_code ?? "",
+            "Event Ref. Code": e.event_ref_code ?? "",
             "Event Name": e.event_name ?? "",
-            "Event Date": e.event_date ?? "",
+            "Event Date": e.event_date ? new Date(e.event_date) : "",
             "Client Name": e.client_name ?? "",
-            "Payment #": idx + 1,
-            "Payment ID": p.id,
-            "Payment Method": p.payment_method ?? "",
-            "Payment Date": p.payment_date ?? "",
-            "Cash Deposit": Number(p.cash_deposit ?? 0),
-            "Online Payment": Number(p.online_payment ?? 0),
-            "Amount": Number(p.amount ?? 0),
-            "Bank/QR Reference": p.reference ?? "",
+            "Payment No": idx + 1,
+            "Payment Mode": p.payment_method ?? "",
+            "Cash Deposit": num(p.cash_deposit),
+            "Online Payment": num(p.online_payment),
+            "Amount": num(p.amount),
+            "Payment Date": p.payment_date ? new Date(p.payment_date) : "",
+            "UTR / QR Reference": p.reference ?? "",
             "Remark": p.remark ?? "",
-            "Created At": p.created_at ?? "",
+            "Recorded At": p.created_at ? new Date(p.created_at) : "",
           });
         });
       });
 
       const wb = XLSX.utils.book_new();
 
-      const wsEvents = XLSX.utils.json_to_sheet(eventRows);
-      wsEvents["!cols"] = autoFitColumns(eventRows);
-      wsEvents["!freeze"] = { xSplit: 0, ySplit: 1 };
-      (wsEvents as any)["!freeze"] = { xSplit: 0, ySplit: 1 };
-      wsEvents["!autofilter"] = { ref: wsEvents["!ref"] ?? "A1" };
-      XLSX.utils.book_append_sheet(wb, wsEvents, "Events");
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows, { header: summaryHeaders });
+      wsSummary["!cols"] = autoFitColumns(summaryRows, summaryHeaders);
+      styleSheet(wsSummary, summaryHeaders, currencyCols, dateCols, percentCols);
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Events Summary");
 
       if (paymentRows.length > 0) {
-        const wsPay = XLSX.utils.json_to_sheet(paymentRows);
-        wsPay["!cols"] = autoFitColumns(paymentRows);
-        wsPay["!autofilter"] = { ref: wsPay["!ref"] ?? "A1" };
-        XLSX.utils.book_append_sheet(wb, wsPay, "Payments");
+        const payHeaders = Object.keys(paymentRows[0]);
+        const wsPay = XLSX.utils.json_to_sheet(paymentRows, { header: payHeaders });
+        wsPay["!cols"] = autoFitColumns(paymentRows, payHeaders);
+        styleSheet(
+          wsPay,
+          payHeaders,
+          ["Cash Deposit", "Online Payment", "Amount"],
+          ["Event Date", "Payment Date", "Recorded At"],
+        );
+        XLSX.utils.book_append_sheet(wb, wsPay, "Payment Details");
       }
 
-      XLSX.writeFile(wb, `Events_Full_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(wb, `BWC_Events_MIS_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success(
-        `Exported ${eventRows.length} event(s) and ${paymentRows.length} payment(s)`,
+        `Exported ${summaryRows.length} event(s) and ${paymentRows.length} payment(s)`,
       );
     } catch (err: any) {
       console.error("Export failed", err);
       toast.error(err.message || "Export failed");
     }
   };
+
 
   if (showCreate) {
     return <EventCreateForm onBack={() => setShowCreate(false)} />;
