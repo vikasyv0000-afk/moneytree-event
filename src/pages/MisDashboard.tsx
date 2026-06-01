@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { TrendingUp, TrendingDown, DollarSign, Wallet, Clock, AlertTriangle, CheckCircle, Lock, Activity, Percent, Users as UsersIcon, CalendarIcon, RotateCcw } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Wallet, Clock, AlertTriangle, CheckCircle, Lock, Activity, Percent, Users as UsersIcon, CalendarIcon, RotateCcw, Trophy, ThumbsDown } from "lucide-react";
 import { motion } from "framer-motion";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { normalizeEventFinancials } from "@/lib/event-financials";
 import { cn } from "@/lib/utils";
 
