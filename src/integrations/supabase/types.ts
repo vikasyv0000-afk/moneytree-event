@@ -110,6 +110,7 @@ export type Database = {
           event_qr_reference: string | null
           event_ref_code: string | null
           event_team_remarks: string | null
+          expected_payment_date: string | null
           finance_clearance: string | null
           financial_year_id: string | null
           full_payment_received: boolean | null
@@ -182,6 +183,7 @@ export type Database = {
           event_qr_reference?: string | null
           event_ref_code?: string | null
           event_team_remarks?: string | null
+          expected_payment_date?: string | null
           finance_clearance?: string | null
           financial_year_id?: string | null
           full_payment_received?: boolean | null
@@ -254,6 +256,7 @@ export type Database = {
           event_qr_reference?: string | null
           event_ref_code?: string | null
           event_team_remarks?: string | null
+          expected_payment_date?: string | null
           finance_clearance?: string | null
           financial_year_id?: string | null
           full_payment_received?: boolean | null
