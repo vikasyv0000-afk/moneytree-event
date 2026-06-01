@@ -378,6 +378,151 @@ export default function MisDashboard() {
         <Kpi label="Outstanding %" value={pct(agg.outstandingPct)} icon={Clock} tone={agg.outstandingPct <= 10 ? "success" : agg.outstandingPct <= 25 ? "warning" : "destructive"} hint="Outstanding / Total Sales" />
       </div>
 
+      {/* ===== Section 2: Revenue vs Cost vs EBITDA Trend ===== */}
+      <SectionHeader title="Revenue vs Cost vs EBITDA — Monthly Trend" subtitle="Month-wise business trend across the selected period" />
+      <Card className="rounded-2xl border-0 shadow-sm">
+        <CardContent className="pt-6">
+          {trend.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">No events in the selected range.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={trend} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => fmt(v)}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5} name="Revenue" dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="cost" stroke="hsl(var(--destructive))" strokeWidth={2.5} name="Cost" dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="ebitda" stroke="hsl(var(--success))" strokeWidth={2.5} name="EBITDA" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Section 3: Zone-wise Performance ===== */}
+      <SectionHeader title="Zone-wise Performance" subtitle="Compare revenue, cost, profitability and collection by zone" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <ZoneHighlightCard label="Best Performing" zone={zoneHighlights.best} icon={Trophy} tone="success" />
+        <ZoneHighlightCard label="Worst Performing" zone={zoneHighlights.worst} icon={ThumbsDown} tone="destructive" />
+        <ZoneHighlightCard label="Highest Outstanding" zone={zoneHighlights.highestOutstanding} icon={AlertTriangle} tone="warning" metric="outstanding" />
+      </div>
+      <Card className="rounded-2xl border-0 shadow-sm">
+        <CardContent className="pt-6 space-y-6">
+          {zoneRows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No zone data available.</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={zoneRows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="zone" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => fmt(v)} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cost" fill="hsl(var(--destructive))" name="Cost" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ebitda" fill="hsl(var(--success))" name="EBITDA" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Zone</TableHead>
+                      <TableHead className="text-right">Events</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                      <TableHead className="text-right">EBITDA</TableHead>
+                      <TableHead className="text-right">EBITDA %</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {zoneRows.map((r) => (
+                      <TableRow key={r.zone}>
+                        <TableCell className="font-semibold">{r.zone}</TableCell>
+                        <TableCell className="text-right font-mono">{r.events}</TableCell>
+                        <TableCell className="text-right font-mono">{fmt(r.revenue)}</TableCell>
+                        <TableCell className="text-right font-mono">{fmt(r.cost)}</TableCell>
+                        <TableCell className={cn("text-right font-mono font-semibold", r.ebitda >= 0 ? "text-success" : "text-destructive")}>{fmt(r.ebitda)}</TableCell>
+                        <TableCell className={cn("text-right font-mono", r.ebitdaPct >= 0 ? "text-success" : "text-destructive")}>{pct(r.ebitdaPct)}</TableCell>
+                        <TableCell className="text-right font-mono text-warning">{fmt(r.outstanding)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Section 4: Category-wise Performance ===== */}
+      <SectionHeader title="Category-wise Performance" subtitle="Standard buckets: Corporate, College/School, Society, Wedding, Others" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-muted-foreground">Revenue by Category</CardTitle></CardHeader>
+          <CardContent>
+            {categoryRows.every((r) => r.revenue === 0) ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">No revenue in any category.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={categoryRows.filter((r) => r.revenue > 0)} dataKey="revenue" nameKey="category" outerRadius={90} label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}>
+                    {categoryRows.filter((r) => r.revenue > 0).map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => fmt(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-muted-foreground">Breakdown</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Events</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">EBITDA</TableHead>
+                  <TableHead className="text-right">EBITDA %</TableHead>
+                  <TableHead className="text-right">Outstanding</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categoryRows.map((r) => (
+                  <TableRow key={r.category}>
+                    <TableCell className="font-semibold">{r.category}</TableCell>
+                    <TableCell className="text-right font-mono">{r.events}</TableCell>
+                    <TableCell className="text-right font-mono">{fmt(r.revenue)}</TableCell>
+                    <TableCell className={cn("text-right font-mono", r.ebitda >= 0 ? "text-success" : "text-destructive")}>{fmt(r.ebitda)}</TableCell>
+                    <TableCell className={cn("text-right font-mono", r.ebitdaPct >= 0 ? "text-success" : "text-destructive")}>{pct(r.ebitdaPct)}</TableCell>
+                    <TableCell className="text-right font-mono text-warning">{fmt(r.outstanding)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ===== Section 10: Event Health ===== */}
+      <SectionHeader title="Event Health" subtitle="Status summary across the selected events" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Kpi label="Active" value={String(agg.active)} icon={Activity} tone="default" />
+        <Kpi label="Locked" value={String(agg.locked)} icon={Lock} tone="warning" />
+        <Kpi label="Fully Paid" value={String(agg.fullPaid)} icon={CheckCircle} tone="success" />
+        <Kpi label="Outstanding" value={String(agg.outstandingClients)} icon={Clock} tone="warning" hint="distinct clients" />
+        <Kpi label="Loss Making" value={String(agg.lossMaking)} icon={AlertTriangle} tone="destructive" />
+      </div>
+
       {/* ===== Status footer ===== */}
       <Card className="rounded-2xl border-0 shadow-sm bg-muted/30">
         <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
@@ -391,7 +536,7 @@ export default function MisDashboard() {
       </Card>
 
       <p className="text-xs text-muted-foreground text-center pt-4">
-        Phase 1 of MIS Dashboard. Trends, zone/category breakdown, aging, payment advice, profitability tables and exports arrive in subsequent phases.
+        Phases 1 & 2 of MIS Dashboard live. Up next: outstanding aging, payment advice, salary & logistics dashboards, profitability tables, and PDF/Excel export.
       </p>
     </div>
   );
