@@ -34,12 +34,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+      <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-6">
           <img src={bwcLogo} alt="BWC Logo" className="h-9 w-9 object-contain" />
           <span className="text-lg font-extrabold text-sidebar-primary">BWC Events</span>
         </div>
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {visibleNav.map((item) => {
             const active = location.pathname === item.to;
             return (
@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border p-4">
+        <div className="shrink-0 border-t border-sidebar-border p-4">
           <div className="mb-2 truncate text-xs font-medium text-sidebar-foreground">{user?.email}</div>
           <div className="mb-3 flex flex-wrap gap-1">
             {roles.map((r) => (
