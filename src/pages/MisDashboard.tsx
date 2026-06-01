@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { TrendingUp, TrendingDown, DollarSign, Wallet, Clock, AlertTriangle, CheckCircle, Lock, Activity, Percent, Users as UsersIcon, CalendarIcon, RotateCcw } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Wallet, Clock, AlertTriangle, CheckCircle, Lock, Activity, Percent, Users as UsersIcon, CalendarIcon, RotateCcw, Trophy, ThumbsDown } from "lucide-react";
 import { motion } from "framer-motion";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { normalizeEventFinancials } from "@/lib/event-financials";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +226,69 @@ export default function MisDashboard() {
     };
   }, [events]);
 
+  // ---- Monthly trend (Revenue / Cost / EBITDA) ----
+  const trend = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; revenue: number; cost: number; ebitda: number }>();
+    for (const e of events) {
+      if (!e.event_date) continue;
+      const d = parseISO(e.event_date as unknown as string);
+      const key = format(d, "yyyy-MM");
+      const label = format(d, "MMM yy");
+      const row = map.get(key) ?? { key, label, revenue: 0, cost: 0, ebitda: 0 };
+      row.revenue += e.total_revenue ?? 0;
+      row.cost += e.total_expenses ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      map.set(key, row);
+    }
+    return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+  }, [events]);
+
+  // ---- Zone breakdown ----
+  const zoneRows = useMemo(() => {
+    const map = new Map<string, { zone: string; events: number; revenue: number; cost: number; ebitda: number; outstanding: number }>();
+    for (const e of events) {
+      const zone = e.zone || "Unassigned";
+      const row = map.get(zone) ?? { zone, events: 0, revenue: 0, cost: 0, ebitda: 0, outstanding: 0 };
+      row.events++;
+      row.revenue += e.total_revenue ?? 0;
+      row.cost += e.total_expenses ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      row.outstanding += e.outstanding ?? 0;
+      map.set(zone, row);
+    }
+    return Array.from(map.values())
+      .map((r) => ({ ...r, ebitdaPct: r.revenue > 0 ? (r.ebitda / r.revenue) * 100 : 0 }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [events]);
+
+  const zoneHighlights = useMemo(() => {
+    if (zoneRows.length === 0) return { best: null, worst: null, highestOutstanding: null };
+    const sortedEbitda = [...zoneRows].sort((a, b) => b.ebitda - a.ebitda);
+    const sortedOutstanding = [...zoneRows].sort((a, b) => b.outstanding - a.outstanding);
+    return {
+      best: sortedEbitda[0],
+      worst: sortedEbitda[sortedEbitda.length - 1],
+      highestOutstanding: sortedOutstanding[0],
+    };
+  }, [zoneRows]);
+
+  // ---- Category breakdown (bucketed into 5 standard buckets) ----
+  const categoryRows = useMemo(() => {
+    const map = new Map<string, { category: string; events: number; revenue: number; ebitda: number; outstanding: number }>();
+    for (const cat of STANDARD_CATEGORIES) map.set(cat, { category: cat, events: 0, revenue: 0, ebitda: 0, outstanding: 0 });
+    for (const e of events) {
+      const cat = bucketCategory(e.category);
+      const row = map.get(cat)!;
+      row.events++;
+      row.revenue += e.total_revenue ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      row.outstanding += e.outstanding ?? 0;
+    }
+    return Array.from(map.values()).map((r) => ({ ...r, ebitdaPct: r.revenue > 0 ? (r.ebitda / r.revenue) * 100 : 0 }));
+  }, [events]);
+
+  const CATEGORY_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -313,6 +378,151 @@ export default function MisDashboard() {
         <Kpi label="Outstanding %" value={pct(agg.outstandingPct)} icon={Clock} tone={agg.outstandingPct <= 10 ? "success" : agg.outstandingPct <= 25 ? "warning" : "destructive"} hint="Outstanding / Total Sales" />
       </div>
 
+      {/* ===== Section 2: Revenue vs Cost vs EBITDA Trend ===== */}
+      <SectionHeader title="Revenue vs Cost vs EBITDA — Monthly Trend" subtitle="Month-wise business trend across the selected period" />
+      <Card className="rounded-2xl border-0 shadow-sm">
+        <CardContent className="pt-6">
+          {trend.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">No events in the selected range.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={trend} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => fmt(v)}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5} name="Revenue" dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="cost" stroke="hsl(var(--destructive))" strokeWidth={2.5} name="Cost" dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="ebitda" stroke="hsl(var(--success))" strokeWidth={2.5} name="EBITDA" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Section 3: Zone-wise Performance ===== */}
+      <SectionHeader title="Zone-wise Performance" subtitle="Compare revenue, cost, profitability and collection by zone" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <ZoneHighlightCard label="Best Performing" zone={zoneHighlights.best} icon={Trophy} tone="success" />
+        <ZoneHighlightCard label="Worst Performing" zone={zoneHighlights.worst} icon={ThumbsDown} tone="destructive" />
+        <ZoneHighlightCard label="Highest Outstanding" zone={zoneHighlights.highestOutstanding} icon={AlertTriangle} tone="warning" metric="outstanding" />
+      </div>
+      <Card className="rounded-2xl border-0 shadow-sm">
+        <CardContent className="pt-6 space-y-6">
+          {zoneRows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No zone data available.</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={zoneRows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="zone" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => fmt(v)} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cost" fill="hsl(var(--destructive))" name="Cost" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ebitda" fill="hsl(var(--success))" name="EBITDA" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Zone</TableHead>
+                      <TableHead className="text-right">Events</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                      <TableHead className="text-right">EBITDA</TableHead>
+                      <TableHead className="text-right">EBITDA %</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {zoneRows.map((r) => (
+                      <TableRow key={r.zone}>
+                        <TableCell className="font-semibold">{r.zone}</TableCell>
+                        <TableCell className="text-right font-mono">{r.events}</TableCell>
+                        <TableCell className="text-right font-mono">{fmt(r.revenue)}</TableCell>
+                        <TableCell className="text-right font-mono">{fmt(r.cost)}</TableCell>
+                        <TableCell className={cn("text-right font-mono font-semibold", r.ebitda >= 0 ? "text-success" : "text-destructive")}>{fmt(r.ebitda)}</TableCell>
+                        <TableCell className={cn("text-right font-mono", r.ebitdaPct >= 0 ? "text-success" : "text-destructive")}>{pct(r.ebitdaPct)}</TableCell>
+                        <TableCell className="text-right font-mono text-warning">{fmt(r.outstanding)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Section 4: Category-wise Performance ===== */}
+      <SectionHeader title="Category-wise Performance" subtitle="Standard buckets: Corporate, College/School, Society, Wedding, Others" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-muted-foreground">Revenue by Category</CardTitle></CardHeader>
+          <CardContent>
+            {categoryRows.every((r) => r.revenue === 0) ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">No revenue in any category.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={categoryRows.filter((r) => r.revenue > 0)} dataKey="revenue" nameKey="category" outerRadius={90} label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}>
+                    {categoryRows.filter((r) => r.revenue > 0).map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => fmt(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-muted-foreground">Breakdown</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Events</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">EBITDA</TableHead>
+                  <TableHead className="text-right">EBITDA %</TableHead>
+                  <TableHead className="text-right">Outstanding</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categoryRows.map((r) => (
+                  <TableRow key={r.category}>
+                    <TableCell className="font-semibold">{r.category}</TableCell>
+                    <TableCell className="text-right font-mono">{r.events}</TableCell>
+                    <TableCell className="text-right font-mono">{fmt(r.revenue)}</TableCell>
+                    <TableCell className={cn("text-right font-mono", r.ebitda >= 0 ? "text-success" : "text-destructive")}>{fmt(r.ebitda)}</TableCell>
+                    <TableCell className={cn("text-right font-mono", r.ebitdaPct >= 0 ? "text-success" : "text-destructive")}>{pct(r.ebitdaPct)}</TableCell>
+                    <TableCell className="text-right font-mono text-warning">{fmt(r.outstanding)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ===== Section 10: Event Health ===== */}
+      <SectionHeader title="Event Health" subtitle="Status summary across the selected events" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Kpi label="Active" value={String(agg.active)} icon={Activity} tone="default" />
+        <Kpi label="Locked" value={String(agg.locked)} icon={Lock} tone="warning" />
+        <Kpi label="Fully Paid" value={String(agg.fullPaid)} icon={CheckCircle} tone="success" />
+        <Kpi label="Outstanding" value={String(agg.outstandingClients)} icon={Clock} tone="warning" hint="distinct clients" />
+        <Kpi label="Loss Making" value={String(agg.lossMaking)} icon={AlertTriangle} tone="destructive" />
+      </div>
+
       {/* ===== Status footer ===== */}
       <Card className="rounded-2xl border-0 shadow-sm bg-muted/30">
         <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
@@ -326,7 +536,7 @@ export default function MisDashboard() {
       </Card>
 
       <p className="text-xs text-muted-foreground text-center pt-4">
-        Phase 1 of MIS Dashboard. Trends, zone/category breakdown, aging, payment advice, profitability tables and exports arrive in subsequent phases.
+        Phases 1 & 2 of MIS Dashboard live. Up next: outstanding aging, payment advice, salary & logistics dashboards, profitability tables, and PDF/Excel export.
       </p>
     </div>
   );
@@ -433,5 +643,45 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
         </PopoverContent>
       </Popover>
     </div>
+  );
+}
+
+function ZoneHighlightCard({
+  label,
+  zone,
+  icon: Icon,
+  tone,
+  metric = "ebitda",
+}: {
+  label: string;
+  zone: { zone: string; revenue: number; ebitda: number; ebitdaPct: number; outstanding: number } | null;
+  icon: any;
+  tone: "success" | "warning" | "destructive";
+  metric?: "ebitda" | "outstanding";
+}) {
+  const toneCls =
+    tone === "success" ? "text-success bg-success/10" : tone === "warning" ? "text-warning bg-warning/10" : "text-destructive bg-destructive/10";
+  const valueCls = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
+  return (
+    <Card className="rounded-2xl border-0 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{label}</CardTitle>
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", toneCls)}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {zone ? (
+          <>
+            <div className="text-xl font-bold text-foreground">{zone.zone}</div>
+            <div className={cn("font-mono text-sm font-semibold mt-1", valueCls)}>
+              {metric === "outstanding" ? fmt(zone.outstanding) : `${fmt(zone.ebitda)} • ${pct(zone.ebitdaPct)}`}
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground">—</div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
