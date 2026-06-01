@@ -9,12 +9,14 @@ import {
   LogOut,
   ClipboardList,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import bwcLogo from "@/assets/bwc-logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/mis", icon: BarChart3, label: "MIS Dashboard", roles: ["super_admin", "finance_user"] as const },
   { to: "/events", icon: CalendarDays, label: "Events" },
   { to: "/masters", icon: BookOpen, label: "Masters" },
   { to: "/audit", icon: ClipboardList, label: "Audit Log", roles: ["super_admin"] as const },

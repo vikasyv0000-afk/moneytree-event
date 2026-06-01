@@ -105,6 +105,7 @@ interface EventFormData {
   paytm_commission: number;
   adjustment: number;
   advance_received: string;
+  expected_payment_date: Date | undefined;
   full_payment_received: boolean;
   additional_remarks: string;
   event_team_remarks: string;
@@ -221,6 +222,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       paytm_commission: (e as any).paytm_commission ?? 0,
       adjustment: e.adjustment ?? 0,
       advance_received: e.advance_received || "NA",
+      expected_payment_date: (e as any).expected_payment_date ? parseISO((e as any).expected_payment_date) : undefined,
       full_payment_received: e.full_payment_received || false,
       additional_remarks: e.additional_remarks || "",
       event_team_remarks: e.event_team_remarks || "",
@@ -279,7 +281,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
       commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
       commission_rent_with_invoice: form.commission_rent_with_invoice, commission_rent_without_invoice: form.commission_rent_without_invoice,
       paytm_commission: form.paytm_commission,
-      adjustment: form.adjustment, advance_received: form.advance_received, full_payment_received: form.full_payment_received,
+      adjustment: form.adjustment, advance_received: form.advance_received, expected_payment_date: form.expected_payment_date ? format(form.expected_payment_date, "yyyy-MM-dd") : null, full_payment_received: form.full_payment_received,
       additional_remarks: form.additional_remarks, event_team_remarks: form.event_team_remarks, remark: form.remark,
       finance_clearance: form.finance_clearance,
     } as any;
@@ -732,7 +734,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Payment Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Advance Received</Label>
               <Select value={form.advance_received} onValueChange={(v) => set("advance_received", v)} disabled={disabled}>
@@ -744,6 +746,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            <DateField label="Expected Payment Date" value={form.expected_payment_date} onChange={(d) => set("expected_payment_date", d)} disabled={disabled} />
             <div className="flex items-center gap-3 pt-5">
               <Switch checked={form.full_payment_received} onCheckedChange={(v) => set("full_payment_received", v)} disabled={disabled} />
               <Label className="text-sm">Full Payment Received</Label>

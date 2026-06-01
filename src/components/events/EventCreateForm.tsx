@@ -126,7 +126,7 @@ const defaultForm: EventFormData = {
   cogs: 0, other_consumables: 0, wastages_variance: 0, manpower_cost: 0, logistic_expense: 0, staff_food_expense: 0, local_purchase: 0, rent_commission: 0, miscellaneous_expense: 0,
   payment_mode: "Online", cash_deposit: 0, cash_banking_date: undefined, online_payment: 0, event_qr_reference: "",
   commission_paid_from_sale: false, commission_amount: 0, commission_rent_with_invoice: 0, commission_rent_without_invoice: 0, paytm_commission: 0, adjustment: 0,
-  advance_received: "NA", full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
+  advance_received: "NA", expected_payment_date: undefined, full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
 };
 
 const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
@@ -236,6 +236,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         paytm_commission: form.paytm_commission,
         adjustment: form.adjustment,
         advance_received: form.advance_received,
+        expected_payment_date: form.expected_payment_date ? format(form.expected_payment_date, "yyyy-MM-dd") : null,
         full_payment_received: form.full_payment_received,
         additional_remarks: form.additional_remarks,
         event_team_remarks: form.event_team_remarks,
@@ -647,7 +648,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Payment Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Advance Received</Label>
               <Select value={form.advance_received} onValueChange={(v) => set("advance_received", v)}>
@@ -659,6 +660,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
                 </SelectContent>
               </Select>
             </div>
+            <DateField label="Expected Payment Date" value={form.expected_payment_date} onChange={(d) => set("expected_payment_date", d)} />
             <div className="flex items-center gap-3 pt-5">
               <Switch checked={form.full_payment_received} onCheckedChange={(v) => set("full_payment_received", v)} />
               <Label className="text-sm">Full Payment Received</Label>
