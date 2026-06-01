@@ -72,6 +72,46 @@ function bucketCategory(cat: string | null | undefined): string {
   return "Others";
 }
 
+function ZoneHighlightCard({
+  label,
+  zone,
+  icon: Icon,
+  tone,
+  metric = "ebitda",
+}: {
+  label: string;
+  zone: { zone: string; revenue: number; ebitda: number; ebitdaPct: number; outstanding: number } | null;
+  icon: any;
+  tone: "success" | "warning" | "destructive";
+  metric?: "ebitda" | "outstanding";
+}) {
+  const toneCls =
+    tone === "success" ? "text-success bg-success/10" : tone === "warning" ? "text-warning bg-warning/10" : "text-destructive bg-destructive/10";
+  const valueCls = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive";
+  return (
+    <Card className="rounded-2xl border-0 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{label}</CardTitle>
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", toneCls)}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {zone ? (
+          <>
+            <div className="text-xl font-bold text-foreground">{zone.zone}</div>
+            <div className={cn("font-mono text-sm font-semibold mt-1", valueCls)}>
+              {metric === "outstanding" ? fmt(zone.outstanding) : `${fmt(zone.ebitda)} • ${pct(zone.ebitdaPct)}`}
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground">—</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MisDashboard() {
   const [params, setParams] = useSearchParams();
 
