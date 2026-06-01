@@ -20,12 +20,17 @@ export default function Dashboard() {
       if (error) throw error;
       return (data ?? []).map((event) => normalizeEventFinancials(event));
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     events.forEach((event) => logOutstandingMismatch("dashboard", event));
   }, [events]);
 
+  // MIS source of truth: EBITDA = Net Sales - Total Cost (computed per-event by calculateEventFinancials,
+  // identical to the stored events.ebitda column after the backfill). Dashboard simply sums these.
   const totalNetSales = events.reduce((s, e) => s + (e.net_sales ?? 0), 0);
   const totalRevenue = events.reduce((s, e) => s + (e.total_revenue ?? 0), 0);
   const totalExpenses = events.reduce((s, e) => s + (e.total_expenses ?? 0), 0);
