@@ -110,6 +110,7 @@ interface EventFormData {
   paytm_commission: number;
   adjustment: number;
   advance_received: string;
+  expected_payment_date: Date | undefined;
   full_payment_received: boolean;
   additional_remarks: string;
   event_team_remarks: string;
