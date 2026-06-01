@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
+import MisDashboard from "@/pages/MisDashboard";
 import Events from "@/pages/Events";
 import Users from "@/pages/Users";
 import AuditLog from "@/pages/AuditLog";
@@ -40,10 +41,13 @@ function RealtimeEventSync() {
   return null;
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+function ProtectedRoute({ children, requireAnyRole }: { children: React.ReactNode; requireAnyRole?: Array<"super_admin" | "finance_user" | "events_user"> }) {
+  const { user, loading, hasRole } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (requireAnyRole && !requireAnyRole.some((r) => hasRole(r))) {
+    return <AppLayout><div className="p-8 text-center text-muted-foreground">You don't have permission to view this page.</div></AppLayout>;
+  }
   return <AppLayout>{children}</AppLayout>;
 }
 
@@ -52,6 +56,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/mis" element={<ProtectedRoute requireAnyRole={["super_admin", "finance_user"]}><MisDashboard /></ProtectedRoute>} />
       <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
       <Route path="/masters" element={<ProtectedRoute><Masters /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
