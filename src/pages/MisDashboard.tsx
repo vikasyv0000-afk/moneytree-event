@@ -226,6 +226,69 @@ export default function MisDashboard() {
     };
   }, [events]);
 
+  // ---- Monthly trend (Revenue / Cost / EBITDA) ----
+  const trend = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; revenue: number; cost: number; ebitda: number }>();
+    for (const e of events) {
+      if (!e.event_date) continue;
+      const d = parseISO(e.event_date as unknown as string);
+      const key = format(d, "yyyy-MM");
+      const label = format(d, "MMM yy");
+      const row = map.get(key) ?? { key, label, revenue: 0, cost: 0, ebitda: 0 };
+      row.revenue += e.total_revenue ?? 0;
+      row.cost += e.total_expenses ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      map.set(key, row);
+    }
+    return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+  }, [events]);
+
+  // ---- Zone breakdown ----
+  const zoneRows = useMemo(() => {
+    const map = new Map<string, { zone: string; events: number; revenue: number; cost: number; ebitda: number; outstanding: number }>();
+    for (const e of events) {
+      const zone = e.zone || "Unassigned";
+      const row = map.get(zone) ?? { zone, events: 0, revenue: 0, cost: 0, ebitda: 0, outstanding: 0 };
+      row.events++;
+      row.revenue += e.total_revenue ?? 0;
+      row.cost += e.total_expenses ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      row.outstanding += e.outstanding ?? 0;
+      map.set(zone, row);
+    }
+    return Array.from(map.values())
+      .map((r) => ({ ...r, ebitdaPct: r.revenue > 0 ? (r.ebitda / r.revenue) * 100 : 0 }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [events]);
+
+  const zoneHighlights = useMemo(() => {
+    if (zoneRows.length === 0) return { best: null, worst: null, highestOutstanding: null };
+    const sortedEbitda = [...zoneRows].sort((a, b) => b.ebitda - a.ebitda);
+    const sortedOutstanding = [...zoneRows].sort((a, b) => b.outstanding - a.outstanding);
+    return {
+      best: sortedEbitda[0],
+      worst: sortedEbitda[sortedEbitda.length - 1],
+      highestOutstanding: sortedOutstanding[0],
+    };
+  }, [zoneRows]);
+
+  // ---- Category breakdown (bucketed into 5 standard buckets) ----
+  const categoryRows = useMemo(() => {
+    const map = new Map<string, { category: string; events: number; revenue: number; ebitda: number; outstanding: number }>();
+    for (const cat of STANDARD_CATEGORIES) map.set(cat, { category: cat, events: 0, revenue: 0, ebitda: 0, outstanding: 0 });
+    for (const e of events) {
+      const cat = bucketCategory(e.category);
+      const row = map.get(cat)!;
+      row.events++;
+      row.revenue += e.total_revenue ?? 0;
+      row.ebitda += e.ebitda ?? 0;
+      row.outstanding += e.outstanding ?? 0;
+    }
+    return Array.from(map.values()).map((r) => ({ ...r, ebitdaPct: r.revenue > 0 ? (r.ebitda / r.revenue) * 100 : 0 }));
+  }, [events]);
+
+  const CATEGORY_COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
