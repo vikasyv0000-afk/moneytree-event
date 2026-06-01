@@ -111,7 +111,6 @@ export function calculateEventFinancials(event: EventFinancialInput) {
   const totalCost = round2(
     numberFrom(
       event.total_cost,
-      numberFrom(event.cogs),
       numberFrom(event.cogs) +
         numberFrom(event.other_consumables) +
         numberFrom(event.wastages_variance) +
@@ -123,10 +122,18 @@ export function calculateEventFinancials(event: EventFinancialInput) {
         numberFrom(event.miscellaneous_expense),
     ),
   );
-  const ebitda = round2(numberFrom(event.netSales, event.net_sales) - totalCost);
-  const ebitdaPercent = numberFrom(event.netSales, event.net_sales) > 0
-    ? round2((ebitda / numberFrom(event.netSales, event.net_sales)) * 100)
-    : 0;
+  // EBITDA = Total Sales - (COGS + Manpower + Logistics + Staff Food + Local Purchase + Rent/Commission + Misc)
+  const ebitdaCost = round2(
+    numberFrom(event.cogs) +
+      numberFrom(event.manpower_cost) +
+      numberFrom(event.logistic_expense) +
+      numberFrom(event.staff_food_expense) +
+      numberFrom(event.local_purchase) +
+      numberFrom(event.rent_commission) +
+      numberFrom(event.miscellaneous_expense),
+  );
+  const ebitda = round2(totalSales - ebitdaCost);
+  const ebitdaPercent = totalSales > 0 ? round2((ebitda / totalSales) * 100) : 0;
   const totalPayment = round2(
     numberFrom(
       event.totalPaymentReceived,
