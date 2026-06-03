@@ -241,6 +241,24 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   const calc = useMemo(() => {
     if (!form) return { totalSales: 0, totalCost: 0, ebitda: 0, ebitdaPercent: 0, totalPayment: 0, outstanding: 0, paymentStatus: "Pending" as const, agingDays: 0, agingLabel: "Recent" };
+    if (!editing && event) {
+      const agingDays = form.event_date ? Math.floor((Date.now() - form.event_date.getTime()) / 86400000) : 0;
+      let agingLabel = "Recent";
+      if (agingDays > 30) agingLabel = "Overdue";
+      else if (agingDays > 7) agingLabel = "Attention";
+
+      return {
+        totalSales: event.total_sales ?? 0,
+        totalCost: event.total_cost ?? 0,
+        ebitda: event.ebitda ?? 0,
+        ebitdaPercent: event.ebitda_percent ?? 0,
+        totalPayment: event.total_payment_received ?? 0,
+        outstanding: event.outstanding ?? 0,
+        paymentStatus: (event.payment_status as "Pending" | "Partial" | "Full Paid") ?? "Pending",
+        agingDays,
+        agingLabel,
+      };
+    }
     const cashSum = payments.reduce((s, p) => s + (p.cash_deposit || 0), 0);
     const onlineSum = payments.reduce((s, p) => s + (p.online_payment || 0), 0);
     const financials = calculateEventFinancials({ ...form, cash_deposit: cashSum, online_payment: onlineSum });
@@ -250,7 +268,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
     else if (agingDays > 7) agingLabel = "Attention";
 
     return { ...financials, agingDays, agingLabel };
-  }, [form, payments]);
+  }, [editing, event, form, payments]);
 
   useEffect(() => {
     if (event) logOutstandingMismatch("event-detail", event);
