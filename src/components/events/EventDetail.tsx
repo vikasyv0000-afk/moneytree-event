@@ -275,8 +275,19 @@ export default function EventDetail({ eventId, onBack }: Props) {
   }, [event]);
 
   const buildPayload = () => {
-    if (!form || !form.event_name || !form.event_date || !form.client_name) {
-      throw new Error("Event Name, Date, and Client Name are required");
+    if (!form) throw new Error("Form not loaded");
+    const missing: string[] = [];
+    if (!form.event_name) missing.push("Event Name");
+    if (!form.event_date) missing.push("Event Date");
+    if (!form.client_name) missing.push("Client Name");
+    if (!form.venue?.trim()) missing.push("Venue");
+    if (!form.state) missing.push("State");
+    if (!form.city) missing.push("City");
+    if (!form.zone) missing.push("Zone");
+    if (!form.spoc) missing.push("SPOC");
+    if (!form.category) missing.push("Category");
+    if (missing.length) {
+      throw new Error(`Please fill required fields: ${missing.join(", ")}`);
     }
     return {
       event_ref_code: form.event_ref_code || null,
