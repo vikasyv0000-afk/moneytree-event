@@ -185,8 +185,18 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.event_name || !form.event_date || !form.client_name) {
-        throw new Error("Event Name, Date, and Client Name are required");
+      const missing: string[] = [];
+      if (!form.event_name) missing.push("Event Name");
+      if (!form.event_date) missing.push("Event Date");
+      if (!form.client_name) missing.push("Client Name");
+      if (!form.venue?.trim()) missing.push("Venue");
+      if (!form.state) missing.push("State");
+      if (!form.city) missing.push("City");
+      if (!form.zone) missing.push("Zone");
+      if (!form.spoc) missing.push("SPOC");
+      if (!form.category) missing.push("Category");
+      if (missing.length) {
+        throw new Error(`Please fill required fields: ${missing.join(", ")}`);
       }
       // Ensure session is still valid before insert (RLS requires auth.uid())
       const { data: sessionData } = await supabase.auth.getSession();
@@ -441,15 +451,15 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Venue</Label>
-              <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} className="text-sm" />
+              <Label className="text-xs text-muted-foreground">Venue *</Label>
+              <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} required className="text-sm" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Area</Label>
               <Input value={form.area} onChange={(e) => set("area", e.target.value)} className="text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">State</Label>
+              <Label className="text-xs text-muted-foreground">State *</Label>
               <SearchableSelect
                 value={form.state}
                 onValueChange={(v) => {
@@ -463,7 +473,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">City</Label>
+              <Label className="text-xs text-muted-foreground">City *</Label>
               <SearchableSelect
                 value={form.city}
                 onValueChange={(v) => set("city", v)}
@@ -475,7 +485,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Zone</Label>
+              <Label className="text-xs text-muted-foreground">Zone *</Label>
               <Select value={form.zone} onValueChange={(v) => set("zone", v)}>
                 <SelectTrigger className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
@@ -495,7 +505,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">SPOC</Label>
+              <Label className="text-xs text-muted-foreground">SPOC *</Label>
               <SearchableSelect
                 value={form.spoc}
                 onValueChange={(v) => set("spoc", v)}
