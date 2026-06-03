@@ -185,8 +185,18 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.event_name || !form.event_date || !form.client_name) {
-        throw new Error("Event Name, Date, and Client Name are required");
+      const missing: string[] = [];
+      if (!form.event_name) missing.push("Event Name");
+      if (!form.event_date) missing.push("Event Date");
+      if (!form.client_name) missing.push("Client Name");
+      if (!form.venue?.trim()) missing.push("Venue");
+      if (!form.state) missing.push("State");
+      if (!form.city) missing.push("City");
+      if (!form.zone) missing.push("Zone");
+      if (!form.spoc) missing.push("SPOC");
+      if (!form.category) missing.push("Category");
+      if (missing.length) {
+        throw new Error(`Please fill required fields: ${missing.join(", ")}`);
       }
       // Ensure session is still valid before insert (RLS requires auth.uid())
       const { data: sessionData } = await supabase.auth.getSession();
