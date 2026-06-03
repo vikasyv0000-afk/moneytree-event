@@ -505,7 +505,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">SPOC</Label>
+              <Label className="text-xs text-muted-foreground">SPOC *</Label>
               <SearchableSelect
                 value={form.spoc}
                 onValueChange={(v) => set("spoc", v)}
