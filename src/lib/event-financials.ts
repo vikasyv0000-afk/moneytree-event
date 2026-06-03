@@ -117,10 +117,9 @@ export function calculateEventFinancials(event: EventFinancialInput) {
       numberFrom(event.rent_commission) +
       numberFrom(event.miscellaneous_expense),
   );
-  // MIS standard: EBITDA = Net Sales - Total Cost; EBITDA % = EBITDA / Net Sales * 100
-  const netSales = numberFrom(event.netSales, event.net_sales);
-  const ebitda = round2(netSales - totalCost);
-  const ebitdaPercent = netSales > 0 ? round2((ebitda / netSales) * 100) : 0;
+  // MIS standard: EBITDA = Total Sales - Total Cost; EBITDA % = EBITDA / Total Sales * 100
+  const ebitda = round2(totalSales - totalCost);
+  const ebitdaPercent = totalSales > 0 ? round2((ebitda / totalSales) * 100) : 0;
   const totalPayment = round2(
     numberFrom(
       event.totalPaymentReceived,
