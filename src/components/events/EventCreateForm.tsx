@@ -451,15 +451,15 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Venue</Label>
-              <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} className="text-sm" />
+              <Label className="text-xs text-muted-foreground">Venue *</Label>
+              <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} required className="text-sm" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Area</Label>
               <Input value={form.area} onChange={(e) => set("area", e.target.value)} className="text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">State</Label>
+              <Label className="text-xs text-muted-foreground">State *</Label>
               <SearchableSelect
                 value={form.state}
                 onValueChange={(v) => {
@@ -473,7 +473,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">City</Label>
+              <Label className="text-xs text-muted-foreground">City *</Label>
               <SearchableSelect
                 value={form.city}
                 onValueChange={(v) => set("city", v)}
@@ -485,7 +485,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Zone</Label>
+              <Label className="text-xs text-muted-foreground">Zone *</Label>
               <Select value={form.zone} onValueChange={(v) => set("zone", v)}>
                 <SelectTrigger className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
