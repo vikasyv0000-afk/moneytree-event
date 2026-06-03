@@ -56,7 +56,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/mis" element={<ProtectedRoute requireAnyRole={["super_admin", "finance_user"]}><MisDashboard /></ProtectedRoute>} />
+      <Route path="/mis" element={<ProtectedRoute><MisDashboard /></ProtectedRoute>} />
       <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
       <Route path="/masters" element={<ProtectedRoute><Masters /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
