@@ -409,7 +409,7 @@ export default function Events() {
           "Total Cost": num(e.total_cost),
           "EBITDA": num(e.ebitda),
           "EBITDA %": num(e.ebitda_percent),
-          "Profit": num(e.profit),
+          "Profit": num(e.ebitda),
           "Commission Paid From Sale": formatCell(e.commission_paid_from_sale),
           "Commission Amount": num(e.commission_amount),
           "Commission Rent With Invoice": num(e.commission_rent_with_invoice),
