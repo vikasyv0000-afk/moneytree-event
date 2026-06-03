@@ -150,19 +150,26 @@ export function calculateEventFinancials(event: EventFinancialInput) {
 
 export function normalizeEventFinancials<T extends Partial<EventRow>>(event: T) {
   const financials = calculateEventFinancials(event);
+  const totalRevenue = numberFrom(event.total_revenue, event.total_sales, financials.totalSales);
+  const totalExpenses = numberFrom(event.total_expenses, event.total_cost, financials.totalCost);
+  const totalPaid = numberFrom(event.total_paid, event.total_payment_received, financials.totalPayment);
+  const ebitda = numberFrom(event.ebitda, financials.ebitda);
+  const ebitdaPercent = numberFrom(event.ebitda_percent, financials.ebitdaPercent);
+  const outstanding = numberFrom(event.outstanding, financials.outstanding);
+  const paymentStatus = stringFrom(event.payment_status, financials.paymentStatus);
 
   return {
     ...event,
-    ebitda: financials.ebitda,
-    ebitda_percent: financials.ebitdaPercent,
-    outstanding: financials.outstanding,
-    payment_status: financials.paymentStatus,
-    profit: financials.ebitda,
-    total_expenses: financials.totalCost,
-    total_paid: financials.totalPayment,
-    total_payment_received: financials.totalPayment,
-    total_revenue: financials.totalSales,
-    total_sales: financials.totalSales,
+    ebitda,
+    ebitda_percent: ebitdaPercent,
+    outstanding,
+    payment_status: paymentStatus,
+    profit: ebitda,
+    total_expenses: totalExpenses,
+    total_paid: totalPaid,
+    total_payment_received: totalPaid,
+    total_revenue: totalRevenue,
+    total_sales: totalRevenue,
   };
 }
 
