@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -403,6 +403,25 @@ export default function EventDetail({ eventId, onBack }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const unlockMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("unlock_event", { _event_id: eventId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (updated) => {
+      if (updated) {
+        const synced = syncEventCaches(qc, updated as never);
+        invalidateEventQueries(qc, synced.id);
+        setForm(eventToForm(synced));
+      } else {
+        invalidateEventQueries(qc, eventId);
+      }
+      toast.success("Event unlocked");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading || !event || !form) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   const isLocked = event.is_locked;
@@ -435,6 +454,20 @@ export default function EventDetail({ eventId, onBack }: Props) {
         <div className="flex items-center gap-2">
           {isLocked && (
             <span className="text-xs text-amber-400 flex items-center gap-1"><Lock className="h-3 w-3" /> Locked — Full Payment Received</span>
+          )}
+          {isLocked && isSuperAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (window.confirm("Unlock this event? It will become editable again.")) {
+                  unlockMutation.mutate();
+                }
+              }}
+              disabled={unlockMutation.isPending}
+            >
+              <Unlock className="mr-2 h-4 w-4" />
+              {unlockMutation.isPending ? "Unlocking..." : "Unlock Event"}
+            </Button>
           )}
           {canEdit && !editing && (
             <Button onClick={() => setEditing(true)} variant="outline">
