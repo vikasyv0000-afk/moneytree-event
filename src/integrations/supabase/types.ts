@@ -58,6 +58,7 @@ export type Database = {
           gst_number: string | null
           id: string
           phone: string | null
+          zone: string | null
         }
         Insert: {
           address?: string | null
@@ -69,6 +70,7 @@ export type Database = {
           gst_number?: string | null
           id?: string
           phone?: string | null
+          zone?: string | null
         }
         Update: {
           address?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           gst_number?: string | null
           id?: string
           phone?: string | null
+          zone?: string | null
         }
         Relationships: []
       }
