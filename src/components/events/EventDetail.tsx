@@ -403,6 +403,25 @@ export default function EventDetail({ eventId, onBack }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const unlockMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("unlock_event", { _event_id: eventId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (updated) => {
+      if (updated) {
+        const synced = syncEventCaches(qc, updated as never);
+        invalidateEventQueries(qc, synced.id);
+        setForm(eventToForm(synced));
+      } else {
+        invalidateEventQueries(qc, eventId);
+      }
+      toast.success("Event unlocked");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading || !event || !form) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   const isLocked = event.is_locked;
