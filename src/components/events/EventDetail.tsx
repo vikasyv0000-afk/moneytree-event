@@ -455,6 +455,20 @@ export default function EventDetail({ eventId, onBack }: Props) {
           {isLocked && (
             <span className="text-xs text-amber-400 flex items-center gap-1"><Lock className="h-3 w-3" /> Locked — Full Payment Received</span>
           )}
+          {isLocked && isSuperAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (window.confirm("Unlock this event? It will become editable again.")) {
+                  unlockMutation.mutate();
+                }
+              }}
+              disabled={unlockMutation.isPending}
+            >
+              <Unlock className="mr-2 h-4 w-4" />
+              {unlockMutation.isPending ? "Unlocking..." : "Unlock Event"}
+            </Button>
+          )}
           {canEdit && !editing && (
             <Button onClick={() => setEditing(true)} variant="outline">
               <Pencil className="mr-2 h-4 w-4" />Edit
