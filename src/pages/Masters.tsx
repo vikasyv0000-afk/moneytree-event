@@ -222,9 +222,20 @@ function ClientTab() {
                 <Label className="text-xs text-muted-foreground">Address</Label>
                 <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Address (optional)" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">GST Number</Label>
-                <Input value={form.gst_number} onChange={(e) => set("gst_number", e.target.value)} placeholder="GST number (optional)" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">GST Number</Label>
+                  <Input value={form.gst_number} onChange={(e) => set("gst_number", e.target.value)} placeholder="GST number (optional)" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <Select value={form.zone || undefined} onValueChange={(v) => set("zone", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select zone (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button className="w-full" onClick={() => addMutation.mutate()} disabled={addMutation.isPending}>
                 {addMutation.isPending ? "Adding..." : "Add Client"}
@@ -234,16 +245,27 @@ function ClientTab() {
         </Dialog>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">Filter by Zone:</Label>
+          <Select value={zoneFilter} onValueChange={setZoneFilter}>
+            <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Zones</SelectItem>
+              {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : clients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No clients added yet.</p>
+          <p className="text-sm text-muted-foreground">{zoneFilter === "all" ? "No clients added yet." : "No clients in this zone."}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Client Name</TableHead>
                 <TableHead>Sub Name</TableHead>
+                <TableHead>Zone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>GST</TableHead>
@@ -255,6 +277,18 @@ function ClientTab() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.client_name}</TableCell>
                   <TableCell className="text-muted-foreground">{c.client_sub_name || "—"}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={c.zone || "__none__"}
+                      onValueChange={(v) => updateZoneMutation.mutate({ id: c.id, zone: v === "__none__" ? null : v })}
+                    >
+                      <SelectTrigger className="h-8 w-28"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">{c.gst_number || "—"}</TableCell>
