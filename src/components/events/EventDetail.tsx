@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
