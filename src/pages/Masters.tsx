@@ -9,8 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck, Trash2 } from "lucide-react";
+
+const ZONES = ["North", "South", "East", "West"] as const;
 
 // --- SPOC Management ---
 function SpocTab() {
@@ -126,15 +129,18 @@ function SpocTab() {
 function ClientTab() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "" });
+  const [form, setForm] = useState({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "", zone: "" });
+  const [zoneFilter, setZoneFilter] = useState<string>("all");
   const { user } = useAuth();
 
   const set = (key: string, val: string) => setForm((prev) => ({ ...prev, [key]: val }));
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["clients"],
+    queryKey: ["clients", zoneFilter],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("*").order("client_name");
+      let q = supabase.from("clients").select("*").order("client_name");
+      if (zoneFilter !== "all") q = q.eq("zone", zoneFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -143,14 +149,28 @@ function ClientTab() {
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!form.client_name.trim()) throw new Error("Client name is required");
-      const { error } = await supabase.from("clients").insert({ ...form, client_name: form.client_name.trim(), created_by: user?.id });
+      const payload: any = { ...form, client_name: form.client_name.trim(), created_by: user?.id };
+      if (!payload.zone) payload.zone = null;
+      const { error } = await supabase.from("clients").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Client added");
-      setForm({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "" });
+      setForm({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "", zone: "" });
       setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateZoneMutation = useMutation({
+    mutationFn: async ({ id, zone }: { id: string; zone: string | null }) => {
+      const { error } = await supabase.from("clients").update({ zone }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Zone updated");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -202,9 +222,20 @@ function ClientTab() {
                 <Label className="text-xs text-muted-foreground">Address</Label>
                 <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Address (optional)" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">GST Number</Label>
-                <Input value={form.gst_number} onChange={(e) => set("gst_number", e.target.value)} placeholder="GST number (optional)" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">GST Number</Label>
+                  <Input value={form.gst_number} onChange={(e) => set("gst_number", e.target.value)} placeholder="GST number (optional)" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <Select value={form.zone || undefined} onValueChange={(v) => set("zone", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select zone (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button className="w-full" onClick={() => addMutation.mutate()} disabled={addMutation.isPending}>
                 {addMutation.isPending ? "Adding..." : "Add Client"}
@@ -214,16 +245,27 @@ function ClientTab() {
         </Dialog>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">Filter by Zone:</Label>
+          <Select value={zoneFilter} onValueChange={setZoneFilter}>
+            <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Zones</SelectItem>
+              {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : clients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No clients added yet.</p>
+          <p className="text-sm text-muted-foreground">{zoneFilter === "all" ? "No clients added yet." : "No clients in this zone."}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Client Name</TableHead>
                 <TableHead>Sub Name</TableHead>
+                <TableHead>Zone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>GST</TableHead>
@@ -235,6 +277,18 @@ function ClientTab() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.client_name}</TableCell>
                   <TableCell className="text-muted-foreground">{c.client_sub_name || "—"}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={c.zone || "__none__"}
+                      onValueChange={(v) => updateZoneMutation.mutate({ id: c.id, zone: v === "__none__" ? null : v })}
+                    >
+                      <SelectTrigger className="h-8 w-28"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">{c.gst_number || "—"}</TableCell>
