@@ -129,15 +129,18 @@ function SpocTab() {
 function ClientTab() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "" });
+  const [form, setForm] = useState({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "", zone: "" });
+  const [zoneFilter, setZoneFilter] = useState<string>("all");
   const { user } = useAuth();
 
   const set = (key: string, val: string) => setForm((prev) => ({ ...prev, [key]: val }));
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["clients"],
+    queryKey: ["clients", zoneFilter],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("*").order("client_name");
+      let q = supabase.from("clients").select("*").order("client_name");
+      if (zoneFilter !== "all") q = q.eq("zone", zoneFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -146,14 +149,28 @@ function ClientTab() {
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!form.client_name.trim()) throw new Error("Client name is required");
-      const { error } = await supabase.from("clients").insert({ ...form, client_name: form.client_name.trim(), created_by: user?.id });
+      const payload: any = { ...form, client_name: form.client_name.trim(), created_by: user?.id };
+      if (!payload.zone) payload.zone = null;
+      const { error } = await supabase.from("clients").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Client added");
-      setForm({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "" });
+      setForm({ client_name: "", client_sub_name: "", email: "", phone: "", address: "", gst_number: "", zone: "" });
       setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateZoneMutation = useMutation({
+    mutationFn: async ({ id, zone }: { id: string; zone: string | null }) => {
+      const { error } = await supabase.from("clients").update({ zone }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Zone updated");
     },
     onError: (e: Error) => toast.error(e.message),
   });
