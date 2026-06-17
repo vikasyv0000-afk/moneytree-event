@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,6 +22,7 @@ import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
 import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
+import EventDocuments from "./EventDocuments";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
