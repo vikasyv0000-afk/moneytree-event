@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +19,11 @@ import { CalendarIcon } from "lucide-react";
 import { calculateEventFinancials, logOutstandingMismatch, logOutstandingSync, normalizeEventFinancials } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
+import EventDocuments from "./EventDocuments";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
