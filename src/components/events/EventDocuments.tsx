@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, Eye, Download, Trash2, FileText, Loader2 } from "lucide-react";
+import { Upload, Eye, Download, Trash2, FileText, Loader2, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { format } from "date-fns";
 
 const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.xlsx,.docx";
@@ -24,6 +24,12 @@ const DOC_TYPES = [
 
 interface Props { eventId: string; }
 
+interface PreviewState {
+  blobUrl: string;
+  fileName: string;
+  kind: "pdf" | "image" | "other";
+}
+
 export default function EventDocuments({ eventId }: Props) {
   const { user, isSuperAdmin } = useAuth();
   const qc = useQueryClient();
@@ -33,6 +39,16 @@ export default function EventDocuments({ eventId }: Props) {
   const [remarks, setRemarks] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    return () => {
+      if (preview?.blobUrl) URL.revokeObjectURL(preview.blobUrl);
+    };
+  }, [preview?.blobUrl]);
 
   const { data: docs = [] } = useQuery({
     queryKey: ["event-documents", eventId],
@@ -96,9 +112,33 @@ export default function EventDocuments({ eventId }: Props) {
   };
 
   const view = async (doc: any) => {
-    const { data, error } = await supabase.storage.from("event-documents").createSignedUrl(doc.storage_path, 300);
-    if (error) { toast.error(error.message); return; }
-    window.open(data.signedUrl, "_blank");
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.storage.from("event-documents").download(doc.storage_path);
+      if (error) throw error;
+      const ext = (doc.file_name.split(".").pop() || "").toLowerCase();
+      const mime = doc.mime_type || "";
+      let kind: PreviewState["kind"] = "other";
+      if (mime.includes("pdf") || ext === "pdf") kind = "pdf";
+      else if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) kind = "image";
+
+      const typedBlob = kind === "pdf" && !mime
+        ? new Blob([data], { type: "application/pdf" })
+        : data;
+      const blobUrl = URL.createObjectURL(typedBlob);
+      setZoom(1);
+      setPreview({ blobUrl, fileName: doc.file_name, kind });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load preview");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (preview?.blobUrl) URL.revokeObjectURL(preview.blobUrl);
+    setPreview(null);
+    setZoom(1);
   };
 
   const download = async (doc: any) => {
@@ -186,8 +226,8 @@ export default function EventDocuments({ eventId }: Props) {
                       {doc.remarks ? ` · ${doc.remarks}` : ""}
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => view(doc)} title="View">
-                    <Eye className="h-3.5 w-3.5" />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => view(doc)} title="View" disabled={previewLoading}>
+                    {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => download(doc)} title="Download">
                     <Download className="h-3.5 w-3.5" />
@@ -209,6 +249,56 @@ export default function EventDocuments({ eventId }: Props) {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) closePreview(); }}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col gap-0">
+          <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-sm font-medium truncate pr-8">{preview?.fileName}</DialogTitle>
+            {preview && preview.kind !== "pdf" && (
+              <div className="flex items-center gap-1 mr-8">
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))} title="Zoom out">
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setZoom((z) => Math.min(5, z + 0.25))} title="Zoom in">
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setZoom(1)} title="Fit">
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </DialogHeader>
+          <div className="flex-1 overflow-auto bg-muted/30">
+            {preview?.kind === "pdf" && (
+              <iframe src={preview.blobUrl} title={preview.fileName} className="w-full h-full border-0" />
+            )}
+            {preview?.kind === "image" && (
+              <div className="min-h-full min-w-full flex items-center justify-center p-4">
+                <img
+                  src={preview.blobUrl}
+                  alt={preview.fileName}
+                  style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 0.15s" }}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
+            {preview?.kind === "other" && (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+                <FileText className="h-10 w-10" />
+                <p>Preview not supported for this file type.</p>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = preview.blobUrl; a.download = preview.fileName;
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                }}>
+                  <Download className="mr-2 h-4 w-4" />Download
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
