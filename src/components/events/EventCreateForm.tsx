@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, CheckCircle, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
