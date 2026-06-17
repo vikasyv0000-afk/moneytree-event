@@ -658,6 +658,27 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         </CardContent>
       </Card>
 
+      {/* Section 8a: Invoices / Documents */}
+      {createdEventId ? (
+        <EventDocuments eventId={createdEventId} />
+      ) : (
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Invoices
+            </CardTitle>
+            <Button size="sm" variant="outline" disabled>
+              <Upload className="mr-2 h-4 w-4" />Upload Invoice
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Save the event to enable invoice uploads.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Section 9: Commission & Adjustments */}
       <Card>
         <CardHeader className="pb-3">
