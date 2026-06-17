@@ -455,6 +455,7 @@ export default function EventDetail({ eventId, onBack }: Props) {
 
   const isLocked = event.is_locked;
   const canEdit = (isSuperAdmin || isEventsUser || isFinanceUser) && !isLocked;
+  const canDelete = isSuperAdmin || (!isLocked && event.created_by === user?.id);
   const disabled = !editing;
 
   const paymentBadge = calc.paymentStatus === "Full Paid"
