@@ -504,6 +504,32 @@ export default function EventDetail({ eventId, onBack }: Props) {
               <Pencil className="mr-2 h-4 w-4" />Edit
             </Button>
           )}
+          {canDelete && !editing && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />Delete Event
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure you want to delete this event?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <b>{event.event_ref_code || event.event_name}</b>, all its payments, and uploaded invoices. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => deleteMutation.mutate()}
+                  >
+                    Delete Event
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {editing && (
             <>
               <Button variant="outline" onClick={() => { setForm(eventToForm(event)); setEditing(false); }}>Cancel</Button>
