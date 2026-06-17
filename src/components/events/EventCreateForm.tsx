@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, CheckCircle, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,6 +22,7 @@ import { INDIA_STATES, getCitiesForState } from "@/data/india-locations";
 import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
+import EventDocuments from "./EventDocuments";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -137,6 +138,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const qc = useQueryClient();
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
    const [payments, setPayments] = useState<PaymentEntry[]>([emptyPayment()]);
+   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
 
    // Fetch SPOCs and Clients for searchable selects
    const { data: spocs = [] } = useQuery({
@@ -183,105 +185,149 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
     return { ...financials, agingDays, agingLabel };
   }, [form, payments]);
 
+  const buildPayload = () => {
+    const missing: string[] = [];
+    if (!form.event_name) missing.push("Event Name");
+    if (!form.event_date) missing.push("Event Date");
+    if (!form.client_name) missing.push("Client Name");
+    if (!form.venue?.trim()) missing.push("Venue");
+    if (!form.state) missing.push("State");
+    if (!form.city) missing.push("City");
+    if (!form.zone) missing.push("Zone");
+    if (!form.spoc) missing.push("SPOC");
+    if (!form.category) missing.push("Category");
+    if (missing.length) {
+      throw new Error(`Please fill required fields: ${missing.join(", ")}`);
+    }
+    return {
+      event_name: form.event_name,
+      event_date: format(form.event_date, "yyyy-MM-dd"),
+      invoice_date: form.invoice_date ? format(form.invoice_date, "yyyy-MM-dd") : null,
+      invoice_code: form.invoice_code,
+      erp_invoice_no: form.erp_invoice_no,
+      posist_code: form.posist_code,
+      client_name: form.client_name,
+      client_sub_name: form.client_sub_name,
+      referral_details: form.referral_details,
+      registration_status: form.registration_status,
+      gst_exempted: form.gst_exempted,
+      area: form.area,
+      city: form.city,
+      state: form.state,
+      zone: form.zone,
+      venue: form.venue,
+      spoc: form.spoc,
+      category: form.category,
+      total_waffwich_sold: form.total_waffwich_sold,
+      total_premix_sold: form.total_premix_sold,
+      total_crisps_sold: form.total_crisps_sold,
+      net_sales: form.net_sales,
+      gst_amount: form.gst_amount,
+      cogs: form.cogs,
+      other_consumables: form.other_consumables,
+      wastages_variance: form.wastages_variance,
+      manpower_cost: form.manpower_cost,
+      logistic_expense: form.logistic_expense,
+      staff_food_expense: form.staff_food_expense,
+      local_purchase: form.local_purchase,
+      rent_commission: form.rent_commission,
+      miscellaneous_expense: form.miscellaneous_expense,
+      commission_paid_from_sale: form.commission_paid_from_sale,
+      commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
+      commission_rent_with_invoice: form.commission_rent_with_invoice,
+      commission_rent_without_invoice: form.commission_rent_without_invoice,
+      paytm_commission: form.paytm_commission,
+      adjustment: form.adjustment,
+      advance_received: form.advance_received,
+      expected_payment_date: form.expected_payment_date ? format(form.expected_payment_date, "yyyy-MM-dd") : null,
+      full_payment_received: form.full_payment_received,
+      additional_remarks: form.additional_remarks,
+      event_team_remarks: form.event_team_remarks,
+      remark: form.remark,
+      finance_clearance: form.finance_clearance,
+    } as any;
+  };
+
+  const syncPayments = async (eventId: string) => {
+    const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
+    const keptIds = valid.map((p) => p.id).filter(Boolean) as string[];
+
+    const { data: existing } = await supabase.from("payments").select("id").eq("event_id", eventId);
+    const toDelete = (existing ?? []).map((r: any) => r.id).filter((id: string) => !keptIds.includes(id));
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from("payments").delete().in("id", toDelete);
+      if (error) throw error;
+    }
+
+    for (const p of valid) {
+      const row = {
+        event_id: eventId,
+        amount: (p.cash_deposit || 0) + (p.online_payment || 0),
+        payment_method: p.payment_mode || "Online",
+        payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        reference: p.bank_ref || "",
+        cash_deposit: p.cash_deposit || 0,
+        online_payment: p.online_payment || 0,
+        remark: p.remark || "",
+      };
+      if (p.id) {
+        const { error } = await supabase.from("payments").update(row).eq("id", p.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payments").insert(row);
+        if (error) throw error;
+      }
+    }
+
+    if (valid.length === 0 && (existing ?? []).length > 0) {
+      await supabase.from("events").update({ cash_deposit: 0, online_payment: 0 }).eq("id", eventId);
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const missing: string[] = [];
-      if (!form.event_name) missing.push("Event Name");
-      if (!form.event_date) missing.push("Event Date");
-      if (!form.client_name) missing.push("Client Name");
-      if (!form.venue?.trim()) missing.push("Venue");
-      if (!form.state) missing.push("State");
-      if (!form.city) missing.push("City");
-      if (!form.zone) missing.push("Zone");
-      if (!form.spoc) missing.push("SPOC");
-      if (!form.category) missing.push("Category");
-      if (missing.length) {
-        throw new Error(`Please fill required fields: ${missing.join(", ")}`);
-      }
-      // Ensure session is still valid before insert (RLS requires auth.uid())
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         throw new Error("Your session has expired. Please sign in again to submit this event.");
       }
+
+      const payload = buildPayload();
+      const eventId = createdEventId;
+
+      if (eventId) {
+        // Update existing event
+        await syncPayments(eventId);
+        const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+        if (error) throw error;
+        const { data, error: rErr } = await supabase.from("events").select("*").eq("id", eventId).single();
+        if (rErr) throw rErr;
+        return data;
+      }
+
+      // Create new event
       const { data, error } = await supabase.from("events").insert({
-        // event_ref_code intentionally omitted — generated by DB trigger
-        event_name: form.event_name,
-        event_date: format(form.event_date, "yyyy-MM-dd"),
-        invoice_date: form.invoice_date ? format(form.invoice_date, "yyyy-MM-dd") : null,
-        invoice_code: form.invoice_code,
-        erp_invoice_no: form.erp_invoice_no,
-        posist_code: form.posist_code,
-        client_name: form.client_name,
-        client_sub_name: form.client_sub_name,
-        referral_details: form.referral_details,
-        registration_status: form.registration_status,
-        gst_exempted: form.gst_exempted,
-        area: form.area,
-        city: form.city,
-        state: form.state,
-        zone: form.zone,
-        venue: form.venue,
-        spoc: form.spoc,
-        category: form.category,
-        total_waffwich_sold: form.total_waffwich_sold,
-        total_premix_sold: form.total_premix_sold,
-        total_crisps_sold: form.total_crisps_sold,
-        net_sales: form.net_sales,
-        gst_amount: form.gst_amount,
-        cogs: form.cogs,
-        other_consumables: form.other_consumables,
-        wastages_variance: form.wastages_variance,
-        manpower_cost: form.manpower_cost,
-        logistic_expense: form.logistic_expense,
-        staff_food_expense: form.staff_food_expense,
-        local_purchase: form.local_purchase,
-        rent_commission: form.rent_commission,
-        miscellaneous_expense: form.miscellaneous_expense,
-        // payment_mode/cash_deposit/cash_banking_date/online_payment/event_qr_reference
-        // are synced from the payments table by DB trigger after we insert rows below.
-        commission_paid_from_sale: form.commission_paid_from_sale,
-        commission_amount: form.commission_paid_from_sale ? form.commission_amount : 0,
-        commission_rent_with_invoice: form.commission_rent_with_invoice,
-        commission_rent_without_invoice: form.commission_rent_without_invoice,
-        paytm_commission: form.paytm_commission,
-        adjustment: form.adjustment,
-        advance_received: form.advance_received,
-        expected_payment_date: form.expected_payment_date ? format(form.expected_payment_date, "yyyy-MM-dd") : null,
-        full_payment_received: form.full_payment_received,
-        additional_remarks: form.additional_remarks,
-        event_team_remarks: form.event_team_remarks,
-        remark: form.remark,
-        finance_clearance: form.finance_clearance,
+        ...payload,
         created_by: user?.id,
       } as any).select("*").single();
       if (error) throw error;
 
-      const valid = payments.filter((p) => (p.cash_deposit || 0) + (p.online_payment || 0) > 0);
-      if (valid.length > 0) {
-        const rows = valid.map((p) => ({
-          event_id: data.id,
-          amount: (p.cash_deposit || 0) + (p.online_payment || 0),
-          payment_method: p.payment_mode || "Online",
-          payment_date: p.banking_date ? format(p.banking_date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-          reference: p.bank_ref || "",
-          cash_deposit: p.cash_deposit || 0,
-          online_payment: p.online_payment || 0,
-          remark: p.remark || "",
-        }));
-        const { error: pErr } = await supabase.from("payments").insert(rows);
-        if (pErr) throw pErr;
-        // Re-fetch event so trigger-updated banking totals reflect in cache
-        const { data: refreshed } = await supabase.from("events").select("*").eq("id", data.id).single();
-        if (refreshed) return refreshed;
-      }
-      return data;
+      await syncPayments(data.id);
+
+      const { data: refreshed, error: rErr } = await supabase.from("events").select("*").eq("id", data.id).single();
+      if (rErr) throw rErr;
+      return refreshed ?? data;
     },
-    onSuccess: (createdEvent) => {
-      const syncedEvent = syncEventCaches(qc, createdEvent);
+    onSuccess: (savedEvent) => {
+      const syncedEvent = syncEventCaches(qc, savedEvent);
       logOutstandingSync("event-create", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
-      toast.success(`Event created — Ref Code: ${syncedEvent.event_ref_code ?? "—"}`);
-      onBack();
+      setCreatedEventId(syncedEvent.id);
+      setForm((prev) => prev ? { ...prev, event_ref_code: syncedEvent.event_ref_code || prev.event_ref_code } : prev);
+      if (!createdEventId) {
+        toast.success(`Event created — Ref Code: ${syncedEvent.event_ref_code ?? "—"}`);
+      } else {
+        toast.success("Event updated");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -299,13 +345,26 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Create Event</h1>
-            <p className="text-sm text-muted-foreground">Complete P&L data entry</p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {createdEventId ? "Event Saved" : "Create Event"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {createdEventId
+                ? `Ref Code: ${form.event_ref_code || "—"} — upload invoices or continue editing`
+                : "Complete P&L data entry"}
+            </p>
           </div>
         </div>
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="lg">
-          <Save className="mr-2 h-4 w-4" />{saveMutation.isPending ? "Saving..." : "Save Event"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {createdEventId && (
+            <Button variant="outline" onClick={onBack} size="lg">
+              <CheckCircle className="mr-2 h-4 w-4" />Done
+            </Button>
+          )}
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="lg">
+            <Save className="mr-2 h-4 w-4" />{saveMutation.isPending ? "Saving..." : createdEventId ? "Update Event" : "Save Event"}
+          </Button>
+        </div>
       </div>
 
       {/* Sticky Financial Summary */}
@@ -612,6 +671,27 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
           <PaymentBlocks payments={payments} onChange={setPayments} totalSales={calc.totalSales} />
         </CardContent>
       </Card>
+
+      {/* Section 8a: Invoices / Documents */}
+      {createdEventId ? (
+        <EventDocuments eventId={createdEventId} />
+      ) : (
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Invoices
+            </CardTitle>
+            <Button size="sm" variant="outline" disabled>
+              <Upload className="mr-2 h-4 w-4" />Upload Invoice
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Save the event to enable invoice uploads.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 9: Commission & Adjustments */}
       <Card>
