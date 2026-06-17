@@ -427,6 +427,30 @@ export default function EventDetail({ eventId, onBack }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      // Remove storage files first (best-effort)
+      const { data: docs } = await supabase
+        .from("event_documents")
+        .select("storage_path")
+        .eq("event_id", eventId);
+      const paths = (docs ?? []).map((d: any) => d.storage_path).filter(Boolean);
+      if (paths.length) {
+        await supabase.storage.from("event-documents").remove(paths);
+      }
+      const { error } = await supabase.rpc("delete_event_cascade", { _event_id: eventId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Event deleted");
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["mis"] });
+      onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading || !event || !form) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   const isLocked = event.is_locked;
