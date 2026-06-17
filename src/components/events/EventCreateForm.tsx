@@ -344,13 +344,26 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Create Event</h1>
-            <p className="text-sm text-muted-foreground">Complete P&L data entry</p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {createdEventId ? "Event Saved" : "Create Event"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {createdEventId
+                ? `Ref Code: ${form.event_ref_code || "—"} — upload invoices or continue editing`
+                : "Complete P&L data entry"}
+            </p>
           </div>
         </div>
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="lg">
-          <Save className="mr-2 h-4 w-4" />{saveMutation.isPending ? "Saving..." : "Save Event"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {createdEventId && (
+            <Button variant="outline" onClick={onBack} size="lg">
+              <CheckCircle className="mr-2 h-4 w-4" />Done
+            </Button>
+          )}
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="lg">
+            <Save className="mr-2 h-4 w-4" />{saveMutation.isPending ? "Saving..." : createdEventId ? "Update Event" : "Save Event"}
+          </Button>
+        </div>
       </div>
 
       {/* Sticky Financial Summary */}
