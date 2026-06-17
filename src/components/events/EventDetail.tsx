@@ -807,6 +807,9 @@ export default function EventDetail({ eventId, onBack }: Props) {
         </CardContent>
       </Card>
 
+      {/* Invoices / Documents */}
+      <EventDocuments eventId={eventId} />
+
       {/* Section 9: Commission & Adjustments */}
       <Card>
         <CardHeader className="pb-3">
