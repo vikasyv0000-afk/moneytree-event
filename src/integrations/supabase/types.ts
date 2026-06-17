@@ -86,6 +86,53 @@ export type Database = {
         }
         Relationships: []
       }
+      event_documents: {
+        Row: {
+          created_at: string
+          document_type: string | null
+          event_id: string
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          remarks: string | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string | null
+          event_id: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          remarks?: string | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string | null
+          event_id?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          remarks?: string | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_documents_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           additional_remarks: string | null
@@ -543,6 +590,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_event_cascade: { Args: { _event_id: string }; Returns: boolean }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
