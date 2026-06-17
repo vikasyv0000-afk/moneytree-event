@@ -23,6 +23,7 @@ import { calculateEventFinancials, logOutstandingSync } from "@/lib/event-financ
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
 import EventDocuments from "./EventDocuments";
+import PendingDocuments, { type PendingDoc } from "./PendingDocuments";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -139,6 +140,42 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
    const [form, setForm] = useState<EventFormData>({ ...defaultForm });
    const [payments, setPayments] = useState<PaymentEntry[]>([emptyPayment()]);
    const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+   const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
+
+   const flushPendingDocs = async (eventId: string) => {
+     if (pendingDocs.length === 0) return;
+     const failed: string[] = [];
+     for (const p of pendingDocs) {
+       try {
+         const ext = p.file.name.split(".").pop();
+         const path = `${eventId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+         const { error: upErr } = await supabase.storage.from("event-documents").upload(path, p.file, {
+           contentType: p.file.type, upsert: false,
+         });
+         if (upErr) throw upErr;
+         const { error: dbErr } = await supabase.from("event_documents").insert({
+           event_id: eventId,
+           file_name: p.file.name,
+           storage_path: path,
+           mime_type: p.file.type,
+           file_size: p.file.size,
+           document_type: p.document_type,
+           remarks: p.remarks || null,
+           uploaded_by: user?.id,
+         });
+         if (dbErr) throw dbErr;
+       } catch (e: any) {
+         failed.push(`${p.file.name}: ${e.message}`);
+       }
+     }
+     if (failed.length) {
+       toast.error(`Some uploads failed: ${failed.join("; ")}`);
+     } else {
+       toast.success(`${pendingDocs.length} invoice(s) uploaded`);
+     }
+     setPendingDocs([]);
+     qc.invalidateQueries({ queryKey: ["event-documents", eventId] });
+   };
 
    // Fetch SPOCs and Clients for searchable selects
    const { data: spocs = [] } = useQuery({
@@ -317,17 +354,19 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
       if (rErr) throw rErr;
       return refreshed ?? data;
     },
-    onSuccess: (savedEvent) => {
+    onSuccess: async (savedEvent) => {
       const syncedEvent = syncEventCaches(qc, savedEvent);
       logOutstandingSync("event-create", syncedEvent);
       invalidateEventQueries(qc, syncedEvent.id);
+      const wasFirstSave = !createdEventId;
       setCreatedEventId(syncedEvent.id);
       setForm((prev) => prev ? { ...prev, event_ref_code: syncedEvent.event_ref_code || prev.event_ref_code } : prev);
-      if (!createdEventId) {
+      if (wasFirstSave) {
         toast.success(`Event created — Ref Code: ${syncedEvent.event_ref_code ?? "—"}`);
       } else {
         toast.success("Event updated");
       }
+      await flushPendingDocs(syncedEvent.id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -676,21 +715,7 @@ export default function EventCreateForm({ onBack }: { onBack: () => void }) {
       {createdEventId ? (
         <EventDocuments eventId={createdEventId} />
       ) : (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Invoices
-            </CardTitle>
-            <Button size="sm" variant="outline" disabled>
-              <Upload className="mr-2 h-4 w-4" />Upload Invoice
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Save the event to enable invoice uploads.
-            </p>
-          </CardContent>
-        </Card>
+        <PendingDocuments pending={pendingDocs} onChange={setPendingDocs} />
       )}
 
       {/* Section 9: Commission & Adjustments */}
