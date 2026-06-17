@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Send, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Lock, Unlock, Pencil, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +19,11 @@ import { CalendarIcon } from "lucide-react";
 import { calculateEventFinancials, logOutstandingMismatch, logOutstandingSync, normalizeEventFinancials } from "@/lib/event-financials";
 import { invalidateEventQueries, syncEventCaches } from "@/lib/event-query-cache";
 import PaymentBlocks, { emptyPayment, type PaymentEntry } from "./PaymentBlocks";
+import EventDocuments from "./EventDocuments";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -422,10 +427,35 @@ export default function EventDetail({ eventId, onBack }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      // Remove storage files first (best-effort)
+      const { data: docs } = await supabase
+        .from("event_documents")
+        .select("storage_path")
+        .eq("event_id", eventId);
+      const paths = (docs ?? []).map((d: any) => d.storage_path).filter(Boolean);
+      if (paths.length) {
+        await supabase.storage.from("event-documents").remove(paths);
+      }
+      const { error } = await supabase.rpc("delete_event_cascade", { _event_id: eventId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Event deleted");
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["mis"] });
+      onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading || !event || !form) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   const isLocked = event.is_locked;
   const canEdit = (isSuperAdmin || isEventsUser || isFinanceUser) && !isLocked;
+  const canDelete = isSuperAdmin || (!isLocked && event.created_by === user?.id);
   const disabled = !editing;
 
   const paymentBadge = calc.paymentStatus === "Full Paid"
@@ -473,6 +503,32 @@ export default function EventDetail({ eventId, onBack }: Props) {
             <Button onClick={() => setEditing(true)} variant="outline">
               <Pencil className="mr-2 h-4 w-4" />Edit
             </Button>
+          )}
+          {canDelete && !editing && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />Delete Event
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure you want to delete this event?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <b>{event.event_ref_code || event.event_name}</b>, all its payments, and uploaded invoices. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => deleteMutation.mutate()}
+                  >
+                    Delete Event
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
           {editing && (
             <>
@@ -750,6 +806,9 @@ export default function EventDetail({ eventId, onBack }: Props) {
           <PaymentBlocks payments={payments} onChange={setPayments} disabled={disabled} totalSales={calc.totalSales} />
         </CardContent>
       </Card>
+
+      {/* Invoices / Documents */}
+      <EventDocuments eventId={eventId} />
 
       {/* Section 9: Commission & Adjustments */}
       <Card>
