@@ -131,7 +131,7 @@ const defaultForm: EventFormData = {
   advance_received: "NA", expected_payment_date: undefined, full_payment_received: false, additional_remarks: "", event_team_remarks: "", remark: "", finance_clearance: "Pending",
 };
 
-const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
+const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society", "Kiosk"];
 const ZONES = ["North", "South", "East", "West"];
 
 export default function EventCreateForm({ onBack }: { onBack: () => void }) {
