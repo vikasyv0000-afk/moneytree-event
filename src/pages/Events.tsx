@@ -45,6 +45,7 @@ const CATEGORIES = [
   "Curations",
   "Private Party",
   "Society",
+  "Kiosk",
 ];
 
 type TabKey = "all" | "outstanding" | "paid" | "active" | "locked";

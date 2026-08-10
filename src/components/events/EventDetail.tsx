@@ -118,7 +118,7 @@ interface EventFormData {
   finance_clearance: string;
 }
 
-const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society"];
+const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society", "Kiosk"];
 const ZONES = ["North", "South", "East", "West", "Central"];
 
 interface Props {
