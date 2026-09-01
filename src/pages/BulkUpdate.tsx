@@ -11,11 +11,6 @@ import { toast } from "sonner";
 import { Download, Upload, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet } from "lucide-react";
 import { INDIA_STATES } from "@/data/india-locations";
 
-const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society", "Kiosk"];
-const ZONES = ["North", "South", "East", "West"];
-const REGISTRATION_STATUS = ["Registered", "Not Registered"];
-const FINANCE_CLEARANCE = ["Approved", "Pending", "Rejected"];
-
 const CLEAR_TOKEN = "[CLEAR]";
 const MAX_ROWS = 1000;
 
