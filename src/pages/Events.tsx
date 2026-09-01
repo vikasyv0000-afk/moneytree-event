@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { usePermissions, PERMISSION_BULK_UPDATE } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Eye, Download, Search, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Eye, Download, Search, Upload, Calendar as CalendarIcon } from "lucide-react";
 import * as XLSX from "xlsx";
 import EventDetail from "@/components/events/EventDetail";
 import EventCreateForm from "@/components/events/EventCreateForm";
@@ -52,6 +53,8 @@ type TabKey = "all" | "outstanding" | "paid" | "active" | "locked";
 
 export default function Events() {
   const { isSuperAdmin, isEventsUser } = useAuth();
+  const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -543,6 +546,13 @@ export default function Events() {
             <Download className="mr-2 h-4 w-4" />
             Export Excel
           </Button>
+          {hasPermission(PERMISSION_BULK_UPDATE) && (
+            <Button variant="outline" className="rounded-xl font-semibold" onClick={() => navigate("/events/bulk-update")}>
+              <Upload className="mr-2 h-4 w-4" />
+              Bulk Update
+            </Button>
+          )}
+
           {canCreate && (
             <Button className="rounded-xl font-semibold" onClick={() => setShowCreate(true)}>
               <Plus className="mr-2 h-4 w-4" />

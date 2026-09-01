@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { PERMISSION_BULK_UPDATE } from "@/hooks/usePermissions";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +47,38 @@ export default function Users() {
     },
     enabled: isSuperAdmin,
   });
+
+  const { data: allPermissions = [] } = useQuery({
+    queryKey: ["all-user-permissions"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_permissions").select("*");
+      if (error) throw error;
+      return data;
+    },
+    enabled: isSuperAdmin,
+  });
+
+  const toggleBulkPermission = useMutation({
+    mutationFn: async ({ userId, enable, permissionId }: { userId: string; enable: boolean; permissionId?: string }) => {
+      if (enable) {
+        const { error } = await supabase
+          .from("user_permissions")
+          .insert({ user_id: userId, permission: PERMISSION_BULK_UPDATE });
+        if (error) throw error;
+      } else if (permissionId) {
+        const { error } = await supabase.from("user_permissions").delete().eq("id", permissionId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["all-user-permissions"] });
+      qc.invalidateQueries({ queryKey: ["user-permissions"] });
+      toast.success("Bulk update access changed");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
 
   const createUser = useMutation({
     mutationFn: async () => {
@@ -176,12 +210,17 @@ export default function Users() {
                   <th className="pb-2 font-medium">User</th>
                   <th className="pb-2 font-medium">Email</th>
                   <th className="pb-2 font-medium">Roles</th>
+                  <th className="pb-2 font-medium">Bulk Update Access</th>
                   <th className="pb-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {profiles.map((p) => {
                   const userRoles = allRoles.filter((r) => r.user_id === p.user_id);
+                  const isAdmin = userRoles.some((r) => r.role === "super_admin");
+                  const bulkPerm = allPermissions.find(
+                    (perm) => perm.user_id === p.user_id && perm.permission === PERMISSION_BULK_UPDATE,
+                  );
                   return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="py-3 font-medium">{p.full_name || "—"}</td>
@@ -198,6 +237,20 @@ export default function Users() {
                         </div>
                       </td>
                       <td className="py-3">
+                        {isAdmin ? (
+                          <span className="text-xs text-muted-foreground">Always on (admin)</span>
+                        ) : (
+                          <Switch
+                            checked={!!bulkPerm}
+                            disabled={toggleBulkPermission.isPending}
+                            onCheckedChange={(enable) =>
+                              toggleBulkPermission.mutate({ userId: p.user_id, enable, permissionId: bulkPerm?.id })
+                            }
+                          />
+                        )}
+                      </td>
+                      <td className="py-3">
+
                         <span className={`rounded-full px-2 py-0.5 text-xs ${p.is_active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
                           {p.is_active ? "Active" : "Inactive"}
                         </span>
