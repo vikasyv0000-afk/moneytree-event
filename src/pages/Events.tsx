@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Eye, Download, Search, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Eye, Download, Search, Upload, Calendar as CalendarIcon } from "lucide-react";
 import * as XLSX from "xlsx";
 import EventDetail from "@/components/events/EventDetail";
 import EventCreateForm from "@/components/events/EventCreateForm";
