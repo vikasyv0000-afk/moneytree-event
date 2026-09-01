@@ -53,6 +53,8 @@ type TabKey = "all" | "outstanding" | "paid" | "active" | "locked";
 
 export default function Events() {
   const { isSuperAdmin, isEventsUser } = useAuth();
+  const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
