@@ -546,6 +546,13 @@ export default function Events() {
             <Download className="mr-2 h-4 w-4" />
             Export Excel
           </Button>
+          {hasPermission(PERMISSION_BULK_UPDATE) && (
+            <Button variant="outline" className="rounded-xl font-semibold" onClick={() => navigate("/events/bulk-update")}>
+              <Upload className="mr-2 h-4 w-4" />
+              Bulk Update
+            </Button>
+          )}
+
           {canCreate && (
             <Button className="rounded-xl font-semibold" onClick={() => setShowCreate(true)}>
               <Plus className="mr-2 h-4 w-4" />
