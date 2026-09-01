@@ -9,13 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download, Upload, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet } from "lucide-react";
-import { INDIA_STATES } from "@/data/india-locations";
-
-const CATEGORIES = ["College & School", "Special & Sporting", "Corporates", "Wedding & Catering", "Curations", "Private Party", "Society", "Kiosk"];
-const ZONES = ["North", "South", "East", "West"];
-const REGISTRATION_STATUS = ["Registered", "Not Registered"];
-const FINANCE_CLEARANCE = ["Approved", "Pending", "Rejected"];
-
 const CLEAR_TOKEN = "[CLEAR]";
 const MAX_ROWS = 1000;
 
@@ -30,25 +23,6 @@ interface FieldDef {
 
 const FIELDS: FieldDef[] = [
   { header: "ERP Invoice No", column: "erp_invoice_no", type: "text" },
-  { header: "Invoice Code", column: "invoice_code", type: "text" },
-  { header: "Invoice Date", column: "invoice_date", type: "date" },
-  { header: "POSist Code", column: "posist_code", type: "text" },
-  { header: "Client Name", column: "client_name", type: "text" },
-  { header: "Client Sub Name", column: "client_sub_name", type: "text" },
-  { header: "Referral Details", column: "referral_details", type: "text" },
-  { header: "Registration Status", column: "registration_status", type: "enum", options: REGISTRATION_STATUS },
-  { header: "Area", column: "area", type: "text" },
-  { header: "City", column: "city", type: "text" },
-  { header: "State", column: "state", type: "enum", options: INDIA_STATES },
-  { header: "Zone", column: "zone", type: "enum", options: ZONES },
-  { header: "SPOC", column: "spoc", type: "text" },
-  { header: "Category", column: "category", type: "enum", options: CATEGORIES },
-  { header: "Venue", column: "venue", type: "text" },
-  { header: "Expected Payment Date", column: "expected_payment_date", type: "date" },
-  { header: "Finance Clearance", column: "finance_clearance", type: "enum", options: FINANCE_CLEARANCE },
-  { header: "Additional Remarks", column: "additional_remarks", type: "text" },
-  { header: "Event Team Remarks", column: "event_team_remarks", type: "text" },
-  { header: "Remark", column: "remark", type: "text" },
 ];
 
 const REF_HEADER = "Event Ref Code";
