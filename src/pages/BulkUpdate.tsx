@@ -373,7 +373,7 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-2 pr-3">Row</th>
-                  <th className="py-2 pr-3">Ref</th>
+                  <th className="py-2 pr-3">Invoice Code</th>
                   <th className="py-2 pr-3">Event</th>
                   <th className="py-2 pr-3">Changes</th>
                   <th className="py-2">Status</th>
