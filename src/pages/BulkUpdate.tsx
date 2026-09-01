@@ -113,7 +113,7 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
     const headers = [REF_HEADER, ...FIELDS.map((f) => f.header)];
     const data = withData
       ? events.map((e) => {
-          const row: Record<string, string> = { [REF_HEADER]: e.event_ref_code ?? "" };
+          const row: Record<string, string> = { [REF_HEADER]: e.invoice_code ?? "" };
           FIELDS.forEach((f) => {
             const v = e[f.column];
             row[f.header] = v === null || v === undefined ? "" : String(v);
@@ -163,12 +163,12 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
         const ref = String(norm(r, REF_HEADER) ?? "").trim();
         const out: PreviewRow = { rowNo: i + 2, ref, changes: [], errors: [] };
         if (!ref) {
-          out.errors.push("Event Ref Code missing");
+          out.errors.push("Invoice Code missing");
           return out;
         }
         const ev = byRef.get(ref.toUpperCase());
         if (!ev) {
-          out.errors.push(`No event found with ref code ${ref}`);
+          out.errors.push(`No event found with Invoice Code ${ref}`);
           return out;
         }
         out.event = ev;
@@ -276,7 +276,7 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
   };
 
   const downloadErrors = () => {
-    const data = errorRows.map((r) => ({ Row: r.rowNo, "Event Ref Code": r.ref, Errors: r.errors.join("; ") }));
+    const data = errorRows.map((r) => ({ Row: r.rowNo, "Invoice Code": r.ref, Errors: r.errors.join("; ") }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Errors");
@@ -289,7 +289,7 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Bulk Update Events</h1>
           <p className="text-sm font-medium text-muted-foreground">
-            Upload a CSV to update multiple events at once — matched by Event Ref Code
+            Upload a CSV to update multiple events at once — matched by Invoice Code
           </p>
         </div>
         {onBack && (
@@ -386,7 +386,9 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
                     <td className="py-2 pr-3 font-mono text-xs">{r.ref || "—"}</td>
                     <td className="py-2 pr-3">
                       <p className="font-medium">{r.event?.event_name ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground">{r.event?.event_date ?? ""}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.event?.event_date ?? ""}{r.event?.event_ref_code ? ` · ${r.event.event_ref_code}` : ""}
+                      </p>
                     </td>
                     <td className="py-2 pr-3">
                       {r.changes.length === 0 ? (
