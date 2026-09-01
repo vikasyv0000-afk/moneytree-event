@@ -43,9 +43,11 @@ export default function Users() {
       if (error) throw error;
       return data;
     },
+    enabled: isSuperAdmin,
+  });
+
   const { data: allPermissions = [] } = useQuery({
     queryKey: ["all-user-permissions"],
-    queryFn: async () => {
       const { data, error } = await supabase.from("user_permissions").select("*");
       if (error) throw error;
       return data;
