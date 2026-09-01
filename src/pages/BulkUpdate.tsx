@@ -25,11 +25,12 @@ const FIELDS: FieldDef[] = [
   { header: "ERP Invoice No", column: "erp_invoice_no", type: "text" },
 ];
 
-const REF_HEADER = "Event Ref Code";
+const REF_HEADER = "Invoice Code";
 
 interface EventLite {
   id: string;
   event_ref_code: string | null;
+  invoice_code: string | null;
   event_name: string;
   event_date: string;
   is_locked: boolean;
@@ -80,7 +81,7 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
   const { data: events = [] } = useQuery({
     queryKey: ["events-bulk-source"],
     queryFn: async () => {
-      const cols = ["id", "event_ref_code", "event_name", "event_date", "is_locked", ...FIELDS.map((f) => f.column)].join(",");
+      const cols = ["id", "event_ref_code", "invoice_code", "event_name", "event_date", "is_locked", ...FIELDS.map((f) => f.column)].join(",");
       const { data, error } = await supabase.from("events").select(cols).order("event_ref_code");
       if (error) throw error;
       return (data ?? []) as unknown as EventLite[];
@@ -91,7 +92,8 @@ export default function BulkUpdate({ onBack }: { onBack?: () => void }) {
   const byRef = useMemo(() => {
     const map = new Map<string, EventLite>();
     events.forEach((e) => {
-      if (e.event_ref_code) map.set(e.event_ref_code.trim().toUpperCase(), e);
+      const key = (e.invoice_code ?? "").trim().toUpperCase();
+      if (key) map.set(key, e);
     });
     return map;
   }, [events]);
