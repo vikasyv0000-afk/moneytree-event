@@ -12,6 +12,7 @@ import Events from "@/pages/Events";
 import Users from "@/pages/Users";
 import AuditLog from "@/pages/AuditLog";
 import Masters from "@/pages/Masters";
+import BulkUpdate from "@/pages/BulkUpdate";
 import AppLayout from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 
