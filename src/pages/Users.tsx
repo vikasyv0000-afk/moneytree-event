@@ -43,8 +43,37 @@ export default function Users() {
       if (error) throw error;
       return data;
     },
+  const { data: allPermissions = [] } = useQuery({
+    queryKey: ["all-user-permissions"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_permissions").select("*");
+      if (error) throw error;
+      return data;
+    },
     enabled: isSuperAdmin,
   });
+
+  const toggleBulkPermission = useMutation({
+    mutationFn: async ({ userId, enable, permissionId }: { userId: string; enable: boolean; permissionId?: string }) => {
+      if (enable) {
+        const { error } = await supabase
+          .from("user_permissions")
+          .insert({ user_id: userId, permission: PERMISSION_BULK_UPDATE });
+        if (error) throw error;
+      } else if (permissionId) {
+        const { error } = await supabase.from("user_permissions").delete().eq("id", permissionId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["all-user-permissions"] });
+      qc.invalidateQueries({ queryKey: ["user-permissions"] });
+      toast.success("Bulk update access changed");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
 
   const createUser = useMutation({
     mutationFn: async () => {
