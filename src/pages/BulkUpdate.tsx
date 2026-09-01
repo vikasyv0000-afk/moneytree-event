@@ -9,8 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download, Upload, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet } from "lucide-react";
-import { INDIA_STATES } from "@/data/india-locations";
-
 const CLEAR_TOKEN = "[CLEAR]";
 const MAX_ROWS = 1000;
 
