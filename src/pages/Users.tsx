@@ -217,6 +217,10 @@ export default function Users() {
               <tbody>
                 {profiles.map((p) => {
                   const userRoles = allRoles.filter((r) => r.user_id === p.user_id);
+                  const isAdmin = userRoles.some((r) => r.role === "super_admin");
+                  const bulkPerm = allPermissions.find(
+                    (perm) => perm.user_id === p.user_id && perm.permission === PERMISSION_BULK_UPDATE,
+                  );
                   return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="py-3 font-medium">{p.full_name || "—"}</td>
@@ -233,6 +237,20 @@ export default function Users() {
                         </div>
                       </td>
                       <td className="py-3">
+                        {isAdmin ? (
+                          <span className="text-xs text-muted-foreground">Always on (admin)</span>
+                        ) : (
+                          <Switch
+                            checked={!!bulkPerm}
+                            disabled={toggleBulkPermission.isPending}
+                            onCheckedChange={(enable) =>
+                              toggleBulkPermission.mutate({ userId: p.user_id, enable, permissionId: bulkPerm?.id })
+                            }
+                          />
+                        )}
+                      </td>
+                      <td className="py-3">
+
                         <span className={`rounded-full px-2 py-0.5 text-xs ${p.is_active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
                           {p.is_active ? "Active" : "Inactive"}
                         </span>
