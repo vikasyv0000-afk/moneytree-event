@@ -210,6 +210,7 @@ export default function Users() {
                   <th className="pb-2 font-medium">User</th>
                   <th className="pb-2 font-medium">Email</th>
                   <th className="pb-2 font-medium">Roles</th>
+                  <th className="pb-2 font-medium">Bulk Update Access</th>
                   <th className="pb-2 font-medium">Status</th>
                 </tr>
               </thead>
