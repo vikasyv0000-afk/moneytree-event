@@ -239,31 +239,48 @@ export default function Events() {
     try {
       const eventIds = filteredEvents.map((e) => e.id);
 
-      const [eventsRes, paymentsRes, fyRes] = await Promise.all([
-        supabase.from("events").select("*").in("id", eventIds),
-        supabase
-          .from("payments")
-          .select("*")
-          .in("event_id", eventIds)
-          .order("payment_date", { ascending: true }),
+      // Keep URL/query sizes safely below the backend limit when exporting large datasets.
+      const idBatches: string[][] = [];
+      for (let i = 0; i < eventIds.length; i += 100) {
+        idBatches.push(eventIds.slice(i, i + 100));
+      }
+
+      const [eventBatchResults, paymentBatchResults, fyRes] = await Promise.all([
+        Promise.all(
+          idBatches.map((ids) => supabase.from("events").select("*").in("id", ids)),
+        ),
+        Promise.all(
+          idBatches.map((ids) =>
+            supabase
+              .from("payments")
+              .select("*")
+              .in("event_id", ids)
+              .order("payment_date", { ascending: true }),
+          ),
+        ),
         supabase.from("financial_years").select("id, label"),
       ]);
 
-      if (eventsRes.error) throw eventsRes.error;
-      if (paymentsRes.error) throw paymentsRes.error;
+      const eventError = eventBatchResults.find((result) => result.error)?.error;
+      const paymentError = paymentBatchResults.find((result) => result.error)?.error;
+      if (eventError) throw eventError;
+      if (paymentError) throw paymentError;
       if (fyRes.error) throw fyRes.error;
+
+      const exportedEvents = eventBatchResults.flatMap((result) => result.data ?? []);
+      const exportedPayments = paymentBatchResults.flatMap((result) => result.data ?? []);
 
       const fyMap = new Map<string, string>();
       (fyRes.data ?? []).forEach((fy: any) => fyMap.set(fy.id, fy.label));
 
       const paymentsByEvent = new Map<string, any[]>();
-      (paymentsRes.data ?? []).forEach((p: any) => {
+      exportedPayments.forEach((p: any) => {
         const arr = paymentsByEvent.get(p.event_id) ?? [];
         arr.push(p);
         paymentsByEvent.set(p.event_id, arr);
       });
 
-      const rawEvents = (eventsRes.data ?? []).sort((a: any, b: any) =>
+      const rawEvents = exportedEvents.sort((a: any, b: any) =>
         (a.event_ref_code ?? "").localeCompare(b.event_ref_code ?? ""),
       );
 
